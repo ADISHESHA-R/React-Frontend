@@ -90,8 +90,14 @@ public class AuthController {
         }
 
         try {
-            userRepo.save(user);
-            log.info("User registered successfully: {}", username);
+            User savedUser = userRepo.save(user);
+            log.info("User registered successfully: {} with ID: {}", username, savedUser.getId());
+            log.info("User password encoded: {}", savedUser.getPassword() != null ? savedUser.getPassword().substring(0, Math.min(20, savedUser.getPassword().length())) + "..." : "null");
+            
+            // Verify user was saved
+            boolean userExists = userRepo.findByUsername(username).isPresent();
+            log.info("Verification: User exists in database after save: {}", userExists);
+            
             return "redirect:/login";
         } catch (Exception e) {
             log.error("Error saving user: {}", e.getMessage(), e);
