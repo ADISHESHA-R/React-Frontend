@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.ui.Model;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import com.Shopping.Shopping.repository.ProductRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +36,9 @@ public class ProductController {
     
     @Autowired
     private SellerRepository sellerRepository;
+    
+    @Autowired
+    private ProductRepository productRepository;
 
     @GetMapping("/seller-dashboard")
     public String sellerDashboard(Model model) {
@@ -128,6 +136,45 @@ public class ProductController {
         } catch (Exception e) {
             logger.error("=== ERROR IN PRODUCT DETAIL REQUEST for ID: {} ===", productId, e);
             throw e;
+        }
+    }
+    
+    /**
+     * Serve product images from database
+     * This endpoint serves images stored in the database (persists across restarts)
+     */
+    @GetMapping("/product-image/{id}")
+    public ResponseEntity<byte[]> getProductImage(@PathVariable("id") Long productId) {
+        logger.info("=== PRODUCT IMAGE REQUEST STARTED ===");
+        logger.info("Requested product image for ID: {}", productId);
+        
+        try {
+            Optional<Product> productOpt = productRepository.findById(productId);
+            
+            if (productOpt.isPresent()) {
+                Product product = productOpt.get();
+                byte[] imageData = product.getImage();
+                
+                if (imageData != null && imageData.length > 0) {
+                    logger.info("Product image found - ID: {}, Size: {} bytes", productId, imageData.length);
+                    
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.IMAGE_JPEG); // Default to JPEG, can be enhanced to detect actual type
+                    headers.setContentLength(imageData.length);
+                    
+                    logger.info("=== PRODUCT IMAGE REQUEST COMPLETED SUCCESSFULLY ===");
+                    return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+                } else {
+                    logger.warn("Product found but no image data for ID: {}", productId);
+                    return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+                }
+            } else {
+                logger.warn("Product not found for ID: {}", productId);
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            logger.error("=== ERROR IN PRODUCT IMAGE REQUEST for ID: {} ===", productId, e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

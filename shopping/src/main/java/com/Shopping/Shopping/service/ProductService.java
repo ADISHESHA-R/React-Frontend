@@ -73,37 +73,33 @@ public class ProductService {
                    product.getName(), product.getDescription(), product.getPrice());
         
         try {
-            Path uploadPath = Paths.get(uploadDir);
-            logger.info("Upload directory: {}", uploadDir);
-
-            String imageName = null;
+            // Store image in database instead of filesystem (persists across restarts)
             if (productImage != null && !productImage.isEmpty()) {
                 logger.info("Processing image file - Name: '{}', Size: {} bytes, Content Type: '{}'", 
                            productImage.getOriginalFilename(), productImage.getSize(), productImage.getContentType());
                 
                 try {
-                    if (!Files.exists(uploadPath)) {
-                        logger.info("Creating upload directory: {}", uploadPath);
-                        Files.createDirectories(uploadPath);
-                    }
-
-                    String imageExtension = getFileExtension(productImage.getOriginalFilename());
-                    imageName = UUID.randomUUID().toString() + imageExtension;
-                    Path imagePath = uploadPath.resolve(imageName);
+                    // Save image data to database
+                    product.setImage(productImage.getBytes());
+                    logger.info("Image data saved to database ({} bytes)", productImage.getBytes().length);
                     
-                    logger.info("Saving image to: {}", imagePath);
-                    Files.write(imagePath, productImage.getBytes());
-                    logger.info("Image saved successfully with name: {}", imageName);
+                    // Keep imageName for backward compatibility (optional)
+                    String imageExtension = getFileExtension(productImage.getOriginalFilename());
+                    String imageName = UUID.randomUUID().toString() + imageExtension;
+                    product.setImageName(imageName);
+                    logger.info("Image name set to: {}", imageName);
                 } catch (IOException e) {
-                    logger.error("Failed to save image file: '{}'", productImage.getOriginalFilename(), e);
-                    logger.warn("Continuing without image due to save failure");
-                    imageName = null;
+                    logger.error("Failed to process image file: '{}'", productImage.getOriginalFilename(), e);
+                    logger.warn("Continuing without image due to processing failure");
+                    product.setImage(null);
+                    product.setImageName(null);
                 }
             } else {
                 logger.info("No image file provided or file is empty");
+                product.setImage(null);
+                product.setImageName(null);
             }
 
-            product.setImageName(imageName);
             logger.info("Saving product to database...");
             Product savedProduct = productRepository.save(product);
             logger.info("Product saved successfully with ID: {}", savedProduct.getId());

@@ -1,11 +1,10 @@
 package com.Shopping.Shopping.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.Base64;
 
 @Entity
 public class Product {
@@ -21,6 +20,10 @@ public class Product {
     private double price;
     
     private String imageName;
+    
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(columnDefinition = "BYTEA")
+    private byte[] image;
     
     private String category;
     
@@ -66,5 +69,12 @@ public class Product {
 
     public Seller getSeller() { return seller; }
     public void setSeller(Seller seller) { this.seller = seller; }
+
+    public byte[] getImage() { return image; }
+    public void setImage(byte[] image) { this.image = image; }
+
+    public String getImageBase64() {
+        return this.image != null ? Base64.getEncoder().encodeToString(this.image) : null;
+    }
 }
 

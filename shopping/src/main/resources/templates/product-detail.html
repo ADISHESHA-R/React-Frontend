@@ -194,8 +194,8 @@
 <body>
 
 <div class="product-detail">
-    <img th:if="${product.imageName != null}" th:src="@{'/uploads/' + ${product.imageName}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';" />
-    <img th:if="${product.imageName == null}" src="/images/no-image.svg" alt="No Image" />
+    <img th:if="${product.image != null}" th:src="@{'/product-image/' + ${product.id}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';" />
+    <img th:if="${product.image == null}" src="/images/no-image.svg" alt="No Image" />
     <h1 th:text="${product.name}"></h1>
     <h3>RS. <span th:text="${product.price}"></span></h3>
     <p th:text="${product.description}"></p>

@@ -330,7 +330,7 @@
 
   <div th:each="item : ${cartItems}" class="product"
        th:attr="data-id=${item.product.id},data-price=${item.product.price}">
-    <img th:if="${item.product.imageName != null}" th:src="@{'/uploads/' + ${item.product.imageName}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';"/>
+    <img th:if="${item.product.image != null}" th:src="@{'/product-image/' + ${item.product.id}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';"/>
     <img th:if="${item.product.imageName == null}" src="/images/no-image.svg" alt="No Image"/>
     <div class="product-details">
       <h3 th:text="${item.product.name}">Product Name</h3>

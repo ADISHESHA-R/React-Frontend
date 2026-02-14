@@ -1084,8 +1084,8 @@
     <div class="product-list">
         <div th:each="product, stat : ${products}" th:if="${stat.index} < 6" class="product-item">
             <a th:href="@{'/product/' + ${product.id}}" class="product-link">
-                <img th:if="${product.imageName != null}" th:src="@{'/uploads/' + ${product.imageName}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';">
-                <img th:if="${product.imageName == null}" src="/images/no-image.svg" alt="No Image">
+                <img th:if="${product.image != null}" th:src="@{'/product-image/' + ${product.id}}" alt="Product Image" onerror="this.onerror=null;this.src='/images/no-image.svg';">
+                <img th:if="${product.image == null}" src="/images/no-image.svg" alt="No Image">
                 <h3 th:text="${product.name}"></h3>
                 <div class="description-box" th:text="${product.description}"></div>
                 <div class="product-info">
