@@ -29,7 +29,7 @@ public class Seller {
     private String gstNumber;
 
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
+    @Column(columnDefinition = "BYTEA")
     private byte[] photo;
 
     public String getPhotoBase64() {
