@@ -97,7 +97,7 @@ public class SecurityConfig {
     public SecurityFilterChain userFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/product/**", "/product-image/**", "/signup", "/login", "/seller-login", "/seller-signup", "/oauth2/**", "/h2-console/**", "/uploads/**", "/css/**", "/js/**", "/images/**").permitAll()
+                        .requestMatchers("/", "/product/**", "/product-image/**", "/signup", "/login", "/seller-login", "/seller-signup", "/oauth2/**", "/h2-console/**", "/uploads/**", "/css/**", "/js/**", "/images/**", "/admin/**").permitAll()
                         .requestMatchers("/search").permitAll() // Allow search for everyone
                         .requestMatchers("/cart/add/**", "/cart/remove/**", "/cart/update/**", "/cart").permitAll() // Allow cart operations for everyone
                         .requestMatchers("/help-center", "/contact-us", "/privacy-policy", "/terms-of-service").permitAll() // Allow public access to info pages
