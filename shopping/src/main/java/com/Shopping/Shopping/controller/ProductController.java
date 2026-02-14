@@ -106,6 +106,11 @@ public class ProductController {
         logger.info("Requested product ID: {}", productId);
         
         try {
+            // Check if user is authenticated
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isUser = auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser");
+            model.addAttribute("isUser", isUser);
+            
             logger.info("Fetching product details for ID: {}", productId);
             Product product = productService.getProductById(productId);
             

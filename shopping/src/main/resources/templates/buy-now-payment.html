@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment - Buy Now</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #f5f5f5, #e8e8e8);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .order-summary {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .order-summary h3 {
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 18px;
+            color: #007bff;
+            margin-top: 10px;
+            padding-top: 15px;
+        }
+        
+        .delivery-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .delivery-info h4 {
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        
+        .delivery-info p {
+            color: #666;
+            margin: 3px 0;
+        }
+        
+        .pay-button {
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+        
+        .pay-button:hover {
+            background: #218838;
+        }
+        
+        .pay-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Complete Your Purchase</h2>
+        
+        <div class="order-summary">
+            <h3>Order Summary</h3>
+            <div class="summary-row">
+                <span th:text="${product.name}">Product Name</span>
+                <span>₹<span th:text="${product.price}">0</span></span>
+            </div>
+            <div class="summary-row">
+                <span>Quantity</span>
+                <span th:text="${quantity}">1</span>
+            </div>
+            <div class="summary-row">
+                <span>Subtotal</span>
+                <span>₹<span th:text="${product.price * quantity}">0</span></span>
+            </div>
+            <div class="summary-row">
+                <span>Total Amount</span>
+                <span>₹<span th:text="${amount / 100}">0</span></span>
+            </div>
+        </div>
+        
+        <div class="delivery-info">
+            <h4>Delivery Address</h4>
+            <p th:text="${user.address}">Address will be displayed here</p>
+            <p><strong>Phone:</strong> <span th:text="${user.phoneNumber}">Phone number</span></p>
+        </div>
+        
+        <div style="text-align: center; padding: 20px;">
+            <p id="statusMessage" style="color: #666; margin-bottom: 10px;">Opening payment gateway...</p>
+            <button class="pay-button" onclick="initiatePayment()" id="payButton" style="display: none;">Pay ₹<span th:text="${amount / 100}">0</span></button>
+        </div>
+    </div>
+
+    <!-- Razorpay Script -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+        const razorpayKey = /*[[${key}]]*/ '';
+        const amount = /*[[${amount}]]*/ 0; // Amount in paise
+        const productName = /*[[${product.name}]]*/ 'Product';
+        const quantity = /*[[${quantity}]]*/ 1;
+        const productId = /*[[${product.id}]]*/ null;
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+        
+        function initiatePayment() {
+            const button = document.querySelector('.pay-button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Processing...';
+            }
+            
+            // Create Razorpay order via AJAX (SAME AS CART CHECKOUT)
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // Add CSRF token if available
+            if (csrfToken && csrfHeader) {
+                headers[csrfHeader] = csrfToken;
+            }
+            
+            console.log('Sending create-order request with amount:', amount);
+            console.log('Headers:', headers);
+            
+            fetch('/create-order', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ amount: amount }),
+                credentials: 'include' // Include cookies for CSRF token
+            })
+            .then(res => {
+                console.log('Create order response status:', res.status);
+                if (!res.ok) {
+                    throw new Error('Failed to create order: ' + res.status + ' ' + res.statusText);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Order created successfully:', data);
+                if (!data.id || !data.amount) {
+                    throw new Error('Invalid order data received from server');
+                }
+                
+                const options = {
+                    key: razorpayKey,
+                    amount: data.amount,
+                    currency: 'INR',
+                    name: 'HSK Shopping',
+                    description: productName + ' (Qty: ' + quantity + ')',
+                    order_id: data.id,
+                    handler: function (response) {
+                        // Send payment success to server
+                        fetch('/payment-success', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                [csrfHeader]: csrfToken || ''
+                            },
+                            body: JSON.stringify({
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                                isBuyNow: true,
+                                productId: productId,
+                                quantity: quantity
+                            })
+                        }).then(() => {
+                            window.location.href = '/payment-success-page';
+                        }).catch(error => {
+                            console.error('Payment verification error:', error);
+                            alert('Payment successful but verification failed. Please contact support.');
+                        });
+                    },
+                    prefill: {
+                        name: /*[[${user.username}]]*/ 'Customer',
+                        contact: /*[[${user.phoneNumber}]]*/ '',
+                        email: /*[[${user.username}]]*/ ''
+                    },
+                    theme: {
+                        color: '#007bff'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            if (button) {
+                                button.disabled = false;
+                                button.textContent = 'Pay ₹' + (amount / 100);
+                            }
+                        }
+                    }
+                };
+                
+                console.log('Opening Razorpay checkout...');
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    console.error('Payment failed:', response.error);
+                    alert('Payment failed: ' + response.error.description);
+                    if (button) {
+                        button.disabled = false;
+                        button.textContent = 'Pay ₹' + (amount / 100);
+                    }
+                });
+                rzp.open();
+            })
+            .catch(error => {
+                console.error('Error creating order:', error);
+                console.error('Error details:', error.message);
+                alert('Failed to initialize payment: ' + error.message + '. Please check the console for details.');
+                const button = document.querySelector('.pay-button');
+                if (button) {
+                    button.disabled = false;
+                    button.style.display = 'block';
+                    button.textContent = 'Pay ₹' + (amount / 100);
+                }
+                const statusMsg = document.getElementById('statusMessage');
+                if (statusMsg) {
+                    statusMsg.textContent = 'Payment initialization failed. Click the button to retry.';
+                    statusMsg.style.color = '#dc3545';
+                }
+            });
+        }
+        
+        // Auto-trigger payment gateway when page loads (Flipkart-like behavior)
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded. Checking payment details...');
+            console.log('Razorpay Key:', razorpayKey ? 'Present' : 'Missing');
+            console.log('Amount:', amount);
+            console.log('Product ID:', productId);
+            console.log('CSRF Token:', csrfToken ? 'Present' : 'Missing');
+            
+            setTimeout(function() {
+                if (!razorpayKey) {
+                    console.error('Razorpay key is missing!');
+                    document.querySelector('.pay-button').style.display = 'block';
+                    document.querySelector('.pay-button').textContent = 'Payment Configuration Error';
+                    alert('Payment gateway not configured. Please contact support.');
+                    return;
+                }
+                
+                if (!amount || amount <= 0) {
+                    console.error('Invalid amount:', amount);
+                    document.querySelector('.pay-button').style.display = 'block';
+                    document.querySelector('.pay-button').textContent = 'Invalid Amount';
+                    alert('Invalid payment amount. Please try again.');
+                    return;
+                }
+                
+                if (typeof Razorpay === 'undefined') {
+                    console.error('Razorpay script not loaded!');
+                    const button = document.querySelector('.pay-button');
+                    if (button) {
+                        button.style.display = 'block';
+                        button.textContent = 'Payment Gateway Error';
+                    }
+                    const statusMsg = document.getElementById('statusMessage');
+                    if (statusMsg) {
+                        statusMsg.textContent = 'Payment gateway script failed to load. Please refresh the page.';
+                        statusMsg.style.color = '#dc3545';
+                    }
+                    alert('Payment gateway script failed to load. Please refresh the page.');
+                    return;
+                }
+                
+                console.log('All checks passed. Auto-opening Razorpay payment gateway...');
+                initiatePayment();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

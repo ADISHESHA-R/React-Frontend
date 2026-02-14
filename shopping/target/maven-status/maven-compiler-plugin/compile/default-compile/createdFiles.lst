@@ -1,3 +1,4 @@
+com\Shopping\Shopping\controller\PaymentController.class
 com\Shopping\Shopping\model\Seller.class
 com\Shopping\Shopping\controller\HomeController.class
 com\Shopping\Shopping\ShoppingApplication.class

@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.Shopping.Shopping.ShoppingApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.65 s -- in com.Shopping.Shopping.ShoppingApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.37 s -- in com.Shopping.Shopping.ShoppingApplicationTests

@@ -170,6 +170,7 @@
 
     <!-- Profile form -->
     <form th:action="@{/profile}" method="post" enctype="multipart/form-data">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <label>Username:</label>
         <input type="text" th:value="${user.username}" readonly />
 

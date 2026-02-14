@@ -987,6 +987,7 @@
                 <a href="/orders" class="dropdown-item">My Orders</a>
                 <a href="/wishlist" class="dropdown-item">Wishlist</a>
                 <form th:action="@{/logout}" method="post" style="margin: 0;">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                     <button type="submit" class="logout-btn">Logout</button>
                 </form>
             </div>
@@ -1098,17 +1099,20 @@
                 <button type="button" onclick="incrementQty(this)">+</button>
             </div>
             <div class="button-group">
-                <form th:action="@{'/cart/add/' + ${product.id}}" method="post" onsubmit="syncQtyBeforeSubmit(this)">
+                <form th:action="@{'/cart/add/' + ${product.id}}" method="post" onsubmit="return syncQtyBeforeSubmit(this);">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                     <input type="hidden" name="quantity" value="1"/>
                     <button type="submit">Add to Cart</button>
                 </form>
+                <!-- Buy Now - Only for authenticated users -->
                 <form th:action="@{'/buy-now/' + ${product.id}}"
-                      method="post"
-                      th:attr="data-product-id=${product.id}, data-price=${product.price}"
-                      onsubmit="return handleBuyNow(event)">
-                    <input type="hidden" name="quantity" value="1"/>
-                    <button type="submit">Buy Now</button>
+                      method="post" onsubmit="return handleBuyNowSubmit(this, event);" th:if="${isUser}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="quantity" value="1" id="buyNowQty-${product.id}"/>
+                    <button type="submit" class="buy-now-btn">Buy Now</button>
                 </form>
+                <!-- Login to Buy - For non-authenticated users -->
+                <a href="/login" class="buy-now-btn" style="display: flex; align-items: center; justify-content: center; text-decoration: none; flex: 1;" th:if="${!isUser}">Login to Buy</a>
             </div>
         </div>
     </div>
@@ -1182,10 +1186,44 @@
     }
 
     function syncQtyBeforeSubmit(form) {
-        const productItem = form.closest('.product-item');
-        const qtyInput = productItem.querySelector('.shared-qty');
-        const hiddenInput = form.querySelector('input[name="quantity"]');
-        hiddenInput.value = qtyInput.value;
+        try {
+            // Find the product item container
+            const productItem = form.closest('.product-item');
+            if (productItem) {
+                // Try multiple selectors to find quantity input
+                let qtyInput = productItem.querySelector('.shared-qty') ||
+                              productItem.querySelector('.quantity-selector input[name="quantity"]') ||
+                              productItem.querySelector('.quantity-selector input[type="number"]') ||
+                              productItem.querySelector('input[name="quantity"]');
+                
+                if (qtyInput && qtyInput.value) {
+                    const quantity = parseInt(qtyInput.value) || 1;
+                    const hiddenInput = form.querySelector('input[name="quantity"]');
+                    if (hiddenInput) {
+                        hiddenInput.value = quantity;
+                        console.log('Quantity synced:', quantity);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error syncing quantity:', error);
+        }
+        // Always return true to allow form submission
+        return true;
+    }
+
+    // Dedicated handler for Buy Now form submission
+    function handleBuyNowSubmit(form, event) {
+        try {
+            // Sync quantity first
+            syncQtyBeforeSubmit(form);
+            // Allow form to submit normally
+            return true;
+        } catch (error) {
+            console.error('Error in handleBuyNowSubmit:', error);
+            // Even if there's an error, allow form submission
+            return true;
+        }
     }
 
     function syncQtyToHiddenInputs(button) {

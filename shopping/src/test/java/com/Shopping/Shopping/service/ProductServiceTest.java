@@ -42,7 +42,8 @@ class ProductServiceTest {
 
     @Test
     void testSearchProducts() {
-        when(productRepository.findByNameContainingIgnoreCase("test"))
+        // Fix: Mock the correct method that ProductService actually uses
+        when(productRepository.searchProducts("test"))
                 .thenReturn(Arrays.asList(product));
 
         List<Product> products = productService.searchProducts("test");
@@ -50,13 +51,29 @@ class ProductServiceTest {
         assertThat(products).isNotEmpty();
         assertThat(products.get(0).getName()).isEqualTo("Test Product");
         verify(productRepository, times(1))
-                .findByNameContainingIgnoreCase("test");
+                .searchProducts("test");
     }
 
     @Test
     void testSaveProductSuccessfully() throws IOException {
+        // Fix: Set uploadDir using reflection since @Value doesn't work in unit tests
+        try {
+            java.lang.reflect.Field uploadDirField = ProductService.class.getDeclaredField("uploadDir");
+            uploadDirField.setAccessible(true);
+            uploadDirField.set(productService, System.getProperty("java.io.tmpdir"));
+        } catch (Exception e) {
+            // If reflection fails, continue - the test will still verify save is called
+        }
+        
         when(multipartFile.getOriginalFilename()).thenReturn("image.png");
         when(multipartFile.getBytes()).thenReturn("dummy".getBytes());
+        when(multipartFile.isEmpty()).thenReturn(false);
+        
+        // Mock the repository.save() to return the product (fixes NullPointerException)
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+            Product p = invocation.getArgument(0);
+            return p; // Return the same product that was passed in
+        });
 
         productService.saveProduct(product, multipartFile);
 

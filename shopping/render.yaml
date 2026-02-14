@@ -1,16 +1,35 @@
-# Render Deployment Configuration
-# This file tells Render how to build and run your Spring Boot application
+services:
+  - type: web
+    name: shopping-app
+    env: java
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar -Dspring.profiles.active=prod target/shopping-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RAZORPAY_KEY
+        sync: false  # Set this in Render dashboard
+      - key: RAZORPAY_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false  # Set this in Render dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Set this in Render dashboard (optional)
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Set this in Render dashboard (optional)
+      - key: GITHUB_CLIENT_ID
+        value: Ov23liCogGkwyc6V02jL
+      - key: GITHUB_CLIENT_SECRET
+        sync: false  # Set this in Render dashboard (optional)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shopping-db
+          property: connectionString
 
-# Build Command
-# Render will automatically detect this is a Maven project and run: mvn clean package
-
-# Start Command  
-# This tells Render how to start your application
-java -jar target/Shopping-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
-
-# Environment Variables (set these in Render dashboard)
-# DATABASE_URL=postgresql://username:password@host:port/database
-# RAZORPAY_KEY=your_razorpay_key
-# RAZORPAY_SECRET=your_razorpay_secret
-# ADMIN_USERNAME=admin
-# ADMIN_PASSWORD=your_secure_password
+databases:
+  - name: shopping-db
+    plan: free
+    databaseName: shopping_db
+    user: shopping_user

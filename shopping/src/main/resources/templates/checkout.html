@@ -3,6 +3,8 @@
 <head>
   <title>Checkout</title>
   <meta charset="UTF-8">
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -333,6 +335,7 @@
     <div class="product-details">
       <h3 th:text="${item.product.name}">Product Name</h3>
       <p th:text="'Price: ₹' + ${item.product.price}">Price</p>
+      <p class="item-total" th:text="'Item Total: ₹' + ${#numbers.formatDecimal(item.product.price * item.quantity, 1, 2)}">Item Total</p>
 
       <div class="quantity-controls">
         <button type="button" onclick="changeQuantity(this, -1)">−</button>
@@ -343,6 +346,7 @@
     </div>
 
     <form th:action="@{'/cart/remove/' + ${item.product.id}}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <button class="remove-button" type="submit">Remove</button>
     </form>
   </div>
@@ -370,15 +374,51 @@
   function updateQuantity(input) {
     const productDiv = input.closest('.product');
     const productId = productDiv.getAttribute('data-id');
-    const quantity = input.value;
+    const quantity = parseInt(input.value);
+    
+    // Validate quantity
+    if (isNaN(quantity) || quantity < 1) {
+      input.value = 1;
+      alert('Quantity must be at least 1');
+      return;
+    }
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+
+    // Show loading state
+    const originalValue = input.value;
+    input.disabled = true;
 
     fetch(`/cart/update/${productId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        [csrfHeader]: csrfToken || ''
+      },
       body: `quantity=${quantity}`
     }).then(response => {
-      if (response.ok) recalculateTotal();
-      else alert('Failed to update quantity');
+      input.disabled = false;
+      if (response.ok) {
+        // Update the item total display
+        const price = parseFloat(productDiv.getAttribute('data-price'));
+        const itemTotal = price * quantity;
+        const itemTotalElement = productDiv.querySelector('.item-total');
+        if (itemTotalElement) {
+          itemTotalElement.textContent = `Item Total: ₹${itemTotal.toFixed(2)}`;
+        }
+        // Recalculate and update grand total
+        recalculateTotal();
+      } else {
+        input.value = originalValue;
+        alert('Failed to update quantity. Please try again.');
+      }
+    }).catch(error => {
+      input.disabled = false;
+      input.value = originalValue;
+      console.error('Error updating quantity:', error);
+      alert('Failed to update quantity. Please try again.');
     });
   }
 
@@ -387,18 +427,31 @@
     let total = 0;
     products.forEach(product => {
       const price = parseFloat(product.getAttribute('data-price'));
-      const qty = parseInt(product.querySelector('input[type="number"]').value);
-      total += price * qty;
+      const qtyInput = product.querySelector('input[type="number"]');
+      const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+      if (!isNaN(price) && !isNaN(qty)) {
+        total += price * qty;
+      }
     });
-    document.getElementById('totalAmount').innerText = total.toFixed(2);
+    const totalElement = document.getElementById('totalAmount');
+    if (totalElement) {
+      totalElement.textContent = total.toFixed(2);
+    }
   }
 
   function startPayment() {
     const total = parseFloat(document.getElementById('totalAmount').innerText);
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
 
     fetch('/create-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        [csrfHeader]: csrfToken || ''
+      },
       body: JSON.stringify({ amount: Math.round(total * 100) })
     })
     .then(res => res.json())
@@ -413,7 +466,10 @@
         handler: function (response) {
           fetch('/payment-success', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              [csrfHeader]: csrfToken || ''
+            },
             body: JSON.stringify(response)
           }).then(() => {
             window.location.href = '/payment-success-page';
