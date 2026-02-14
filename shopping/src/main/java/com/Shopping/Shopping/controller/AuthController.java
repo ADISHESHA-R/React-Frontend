@@ -91,31 +91,12 @@ public class AuthController {
 
         try {
             log.info("Attempting to save user: {}", username);
-            User savedUser = userRepo.save(user);
-            log.info("User saved with ID: {}", savedUser.getId());
-            
-            // Force flush to ensure data is persisted
-            userRepo.flush();
-            log.info("Database flush completed for user: {}", username);
+            // Use saveAndFlush to ensure immediate persistence
+            User savedUser = userRepo.saveAndFlush(user);
+            log.info("User saved and flushed with ID: {}", savedUser.getId());
             
             log.info("User registered successfully: {} with ID: {}", username, savedUser.getId());
             log.info("User password encoded: {}", savedUser.getPassword() != null ? savedUser.getPassword().substring(0, Math.min(20, savedUser.getPassword().length())) + "..." : "null");
-            
-            // Verify user was saved - wait a moment for transaction to commit
-            try {
-                Thread.sleep(100); // Small delay to ensure transaction commits
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            
-            boolean userExists = userRepo.findByUsername(username).isPresent();
-            log.info("Verification: User exists in database after save: {}", userExists);
-            
-            if (!userExists) {
-                log.error("CRITICAL: User was saved but not found in database! Username: {}", username);
-                model.addAttribute("error", "Registration completed but verification failed. Please try logging in.");
-                return "signup";
-            }
             
             return "redirect:/login?signup=success";
         } catch (Exception e) {
@@ -172,7 +153,10 @@ public class AuthController {
         }
 
         try {
-            sellerRepo.save(seller);
+            log.info("Attempting to save seller: {}", username);
+            // Use saveAndFlush to ensure immediate persistence
+            Seller savedSeller = sellerRepo.saveAndFlush(seller);
+            log.info("Seller saved and flushed with ID: {}", savedSeller.getId());
             log.info("Seller registered successfully: {}", username);
             return "redirect:/seller-login";
         } catch (Exception e) {
