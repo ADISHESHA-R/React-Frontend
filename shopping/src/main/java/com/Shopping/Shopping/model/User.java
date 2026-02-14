@@ -27,7 +27,7 @@ public class User {
     private String address;
 
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
+    @Column(columnDefinition = "BYTEA")
     private byte[] photo;
 
     public String getPhotoBase64() {
