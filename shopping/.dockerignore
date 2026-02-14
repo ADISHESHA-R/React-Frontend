@@ -1,0 +1,12 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+data/
+logs/
+uploads/
+*.db
+*.trace.db
+*.mv.db
+.git
+.gitignore
+README.md
+*.md
