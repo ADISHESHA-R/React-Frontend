@@ -450,7 +450,12 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // CSRF token from Thymeleaf
+        const csrfToken = /*[[${_csrf.token}]]*/ '';
+        const csrfParam = /*[[${_csrf.parameterName}]]*/ '_csrf';
+        
         // Helper function to escape HTML and quotes for attribute values
         function escapeHtml(text) {
             if (!text) return '';
@@ -469,6 +474,7 @@
             if (!text) return '';
             return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
+        /*]]>*/
 
         function editUserFromButton(button) {
             const id = button.getAttribute('data-id');
@@ -502,8 +508,6 @@
         function editUser(id, username, phoneNumber, alternateNumber, address) {
             document.getElementById('modalTitle').textContent = 'Edit User';
             document.getElementById('editForm').action = '/admin/users/update/' + id;
-            const csrfToken = document.querySelector('input[name="' + document.querySelector('input[type="hidden"]').name + '"]').value;
-            const csrfParam = document.querySelector('input[type="hidden"]').name;
             document.getElementById('modalContent').innerHTML = 
                 '<input type="hidden" name="' + csrfParam + '" value="' + csrfToken + '"/>' +
                 '<div style="margin-bottom: 15px;">' +
@@ -528,8 +532,6 @@
         function editSeller(id, username, email, whatsappNumber, businessEmail, gstNumber) {
             document.getElementById('modalTitle').textContent = 'Edit Seller';
             document.getElementById('editForm').action = '/admin/sellers/update/' + id;
-            const csrfToken = document.querySelector('input[name="' + document.querySelector('input[type="hidden"]').name + '"]').value;
-            const csrfParam = document.querySelector('input[type="hidden"]').name;
             document.getElementById('modalContent').innerHTML = 
                 '<input type="hidden" name="' + csrfParam + '" value="' + csrfToken + '"/>' +
                 '<div style="margin-bottom: 15px;">' +
@@ -558,8 +560,6 @@
         function editProduct(id, name, description, price, category, uniqueProductId) {
             document.getElementById('modalTitle').textContent = 'Edit Product';
             document.getElementById('editForm').action = '/admin/products/update/' + id;
-            const csrfToken = document.querySelector('input[name="' + document.querySelector('input[type="hidden"]').name + '"]').value;
-            const csrfParam = document.querySelector('input[type="hidden"]').name;
             document.getElementById('modalContent').innerHTML = 
                 '<input type="hidden" name="' + csrfParam + '" value="' + csrfToken + '"/>' +
                 '<div style="margin-bottom: 15px;">' +
