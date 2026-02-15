@@ -221,6 +221,7 @@ public class AdminController {
                                @RequestParam("description") String description,
                                @RequestParam("price") double price,
                                @RequestParam("category") String category,
+                               @RequestParam(value = "uniqueProductId", required = false) String uniqueProductId,
                                RedirectAttributes redirectAttributes) {
         try {
             Product product = productRepository.findById(id)
@@ -229,6 +230,9 @@ public class AdminController {
             product.setDescription(description);
             product.setPrice(price);
             product.setCategory(category);
+            if (uniqueProductId != null && !uniqueProductId.trim().isEmpty()) {
+                product.setUniqueProductId(uniqueProductId);
+            }
             productRepository.saveAndFlush(product);
             log.info("Product updated successfully: ID {}", id);
             redirectAttributes.addFlashAttribute("success", "Product updated successfully!");
