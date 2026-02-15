@@ -11,7 +11,8 @@ public class AdminDetailsService implements UserDetailsService {
 
     private static final String ADMIN_USERNAME = "AdisheshaR";
     // BCrypt hash for password: ADI@28RSCA
-    private static final String ADMIN_PASSWORD = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    // Generated and verified with BCryptPasswordEncoder
+    private static final String ADMIN_PASSWORD = "$2a$10$CNND/EyWQggdH4Jt9kxGkujQj8X.xfMSb5QnotUQKIAGahmaXKXQq";
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
