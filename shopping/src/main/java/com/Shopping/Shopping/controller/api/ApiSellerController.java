@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/seller")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}, allowCredentials = "true")
 public class ApiSellerController {
 
     private final SellerRepository sellerRepository;
