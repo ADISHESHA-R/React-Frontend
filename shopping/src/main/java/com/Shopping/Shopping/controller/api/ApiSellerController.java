@@ -216,11 +216,17 @@ public class ApiSellerController {
                 uniqueProductId = "PROD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
             }
 
+            // Handle image filename safely (validation happens in saveProduct)
+            String imageFileName = null;
+            if (request.getProductImage() != null && !request.getProductImage().isEmpty()) {
+                imageFileName = request.getProductImage().getOriginalFilename();
+            }
+
             Product product = new Product(
                 request.getProductName(),
                 request.getProductDescription(),
                 request.getProductPrice(),
-                request.getProductImage().getOriginalFilename(),
+                imageFileName,
                 request.getProductCategory(),
                 uniqueProductId,
                 seller
@@ -229,7 +235,12 @@ public class ApiSellerController {
             productService.saveProduct(product, request.getProductImage());
             return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Product uploaded successfully", convertProductToDTO(product)));
+        } catch (IllegalArgumentException e) {
+            // Validation errors (invalid format, size, etc.) return 400 Bad Request
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            // Other errors return 500 Internal Server Error
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to upload product: " + e.getMessage()));
         }

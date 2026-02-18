@@ -77,21 +77,26 @@ public class ProductService {
                 logger.info("Processing image file - Name: '{}', Size: {} bytes, Content Type: '{}'", 
                            productImage.getOriginalFilename(), productImage.getSize(), productImage.getContentType());
                 
+                // Validate image format and size
+                validateImageFile(productImage);
+                
                 try {
                     // Save image data to database
                     product.setImage(productImage.getBytes());
                     logger.info("Image data saved to database ({} bytes)", productImage.getBytes().length);
                     
-                    // Keep imageName for backward compatibility (optional)
+                    // Keep imageName for backward compatibility (ensure .jpg extension)
                     String imageExtension = getFileExtension(productImage.getOriginalFilename());
+                    // Ensure extension is .jpg or .jpeg
+                    if (!imageExtension.equalsIgnoreCase(".jpg") && !imageExtension.equalsIgnoreCase(".jpeg")) {
+                        imageExtension = ".jpg"; // Default to .jpg
+                    }
                     String imageName = UUID.randomUUID().toString() + imageExtension;
                     product.setImageName(imageName);
                     logger.info("Image name set to: {}", imageName);
                 } catch (IOException e) {
                     logger.error("Failed to process image file: '{}'", productImage.getOriginalFilename(), e);
-                    logger.warn("Continuing without image due to processing failure");
-                    product.setImage(null);
-                    product.setImageName(null);
+                    throw new RuntimeException("Failed to process image file: " + e.getMessage(), e);
                 }
             } else {
                 logger.info("No image file provided or file is empty");
@@ -142,6 +147,11 @@ public class ProductService {
         logger.info("=== GET PRODUCT BY ID METHOD STARTED ===");
         logger.info("Requested product ID: {}", productId);
         
+        if (productId == null) {
+            logger.warn("Product ID is null");
+            return null;
+        }
+        
         try {
             Optional<Product> productOpt = productRepository.findById(productId);
             
@@ -159,6 +169,44 @@ public class ProductService {
         } catch (Exception e) {
             logger.error("=== ERROR IN GET PRODUCT BY ID METHOD for ID: {} ===", productId, e);
             throw e;
+        }
+    }
+    
+    /**
+     * Validate image file format and size
+     * @param file MultipartFile to validate
+     * @throws IllegalArgumentException if validation fails
+     */
+    private void validateImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Image file is required");
+        }
+        
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || fileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Image filename is required");
+        }
+        
+        // Check file extension (JPG/JPEG only)
+        String fileNameLower = fileName.toLowerCase();
+        if (!fileNameLower.endsWith(".jpg") && !fileNameLower.endsWith(".jpeg")) {
+            throw new IllegalArgumentException("Only JPG and JPEG image formats are allowed. Provided: " + fileName);
+        }
+        
+        // Check file size (10MB limit)
+        long maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.getSize() > maxSize) {
+            double sizeInMB = file.getSize() / (1024.0 * 1024.0);
+            throw new IllegalArgumentException(
+                String.format("Image size exceeds 10MB limit. Size: %.2f MB", sizeInMB));
+        }
+        
+        // Validate content type if available
+        String contentType = file.getContentType();
+        if (contentType != null && 
+            !contentType.equalsIgnoreCase("image/jpeg") && 
+            !contentType.equalsIgnoreCase("image/jpg")) {
+            logger.warn("Content type mismatch. Expected image/jpeg, got: {}", contentType);
         }
     }
 }

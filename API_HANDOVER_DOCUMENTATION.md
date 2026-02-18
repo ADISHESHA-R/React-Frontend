@@ -1,14 +1,32 @@
-# HSK Shopping - Complete API Documentation
+# HSK Shopping API - Complete Handover Documentation
 
-**Base URL:** 
-- Local: `http://localhost:8082`
-- Production: `https://react-frontend-9wcj.onrender.com`
+**For Frontend Developer**
 
-**Authentication:** JWT Token (Bearer Token)
-- Get token by logging in via `/api/v1/auth/login`, `/api/v1/seller/login`, or `/api/v1/admin/login`
-- Include token in header: `Authorization: Bearer <your_token>`
+---
 
-**Response Format:**
+## 📋 Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Authentication](#authentication)
+3. [Public APIs](#public-apis)
+4. [User APIs](#user-apis)
+5. [Cart APIs](#cart-apis)
+6. [Payment APIs](#payment-apis)
+7. [Seller APIs](#seller-apis)
+8. [Admin APIs](#admin-apis)
+9. [Error Handling](#error-handling)
+10. [Code Examples](#code-examples)
+
+---
+
+## 🚀 Quick Start
+
+### Base URLs
+- **Local Development:** `http://localhost:8082`
+- **Production:** `https://react-frontend-9wcj.onrender.com`
+
+### Response Format
+All API responses follow this structure:
 ```json
 {
   "success": true/false,
@@ -17,90 +35,28 @@
 }
 ```
 
----
-
-## 📦 PRODUCTS (Public - No Auth Required)
-
-### 1. Get All Products
-- **Method:** `GET`
-- **URL:** `/api/v1/products`
-- **Auth:** None
-- **Response:**
-```json
-{
-  "success": true,
-  "message": "Success",
-  "data": [
-    {
-      "id": 1,
-      "name": "Product Name",
-      "description": "Product description",
-      "price": 999.99,
-      "category": "Electronics",
-      "uniqueProductId": "PROD-123",
-      "imageUrl": "/product-image/1"
-    }
-  ]
-}
-```
-
-### 2. Get Product by ID
-- **Method:** `GET`
-- **URL:** `/api/v1/products/{id}`
-- **Auth:** None
-- **Response:**
-```json
-{
-  "success": true,
-  "message": "Success",
-  "data": {
-    "id": 1,
-    "name": "Product Name",
-    "description": "Product description",
-    "price": 999.99,
-    "category": "Electronics",
-    "uniqueProductId": "PROD-123",
-    "imageUrl": "/product-image/1"
-  }
-}
-```
-
-### 3. Get Products by Category
-- **Method:** `GET`
-- **URL:** `/api/v1/products/category/{category}`
-- **Auth:** None
-- **Example:** `/api/v1/products/category/Electronics`
-- **Response:** Same as Get All Products
-
-### 4. Search Products
-- **Method:** `GET`
-- **URL:** `/api/v1/products/search?query={keyword}`
-- **Auth:** None
-- **Example:** `/api/v1/products/search?query=laptop`
-- **Response:** Same as Get All Products
-
-### 5. Get Product Image
-- **Method:** `GET`
-- **URL:** `/product-image/{id}`
-- **Auth:** None
-- **Response:** Binary image data (JPEG/PNG)
+### Authentication
+- **Type:** JWT Bearer Token
+- **Get Token:** Login via `/api/v1/auth/login`
+- **Use Token:** Include in header: `Authorization: Bearer <token>`
+- **Expiration:** 24 hours
 
 ---
 
-## 🔐 AUTHENTICATION (Public - No Auth Required)
+## 🔐 Authentication
 
-### 6. User Login
-- **Method:** `POST`
-- **URL:** `/api/v1/auth/login`
-- **Auth:** None
-- **Request Body:**
+### 1. User Login
+**Endpoint:** `POST /api/v1/auth/login`
+
+**Request:**
 ```json
 {
   "username": "testuser",
   "password": "Test@1234"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -120,11 +76,10 @@
 }
 ```
 
-### 7. User Signup
-- **Method:** `POST`
-- **URL:** `/api/v1/auth/signup`
-- **Auth:** None
-- **Request Body:**
+### 2. User Signup
+**Endpoint:** `POST /api/v1/auth/signup`
+
+**Request:**
 ```json
 {
   "username": "newuser",
@@ -133,7 +88,8 @@
   "address": "123 Main St"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -147,18 +103,18 @@
 }
 ```
 
-### 8. Seller Login
-- **Method:** `POST`
-- **URL:** `/api/v1/seller/login`
-- **Auth:** None
-- **Request Body:**
+### 3. Seller Login
+**Endpoint:** `POST /api/v1/seller/login`
+
+**Request:**
 ```json
 {
   "username": "testseller",
   "password": "Test@1234"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -179,19 +135,23 @@
 }
 ```
 
-### 9. Seller Signup
-- **Method:** `POST`
-- **URL:** `/api/v1/seller/signup`
-- **Auth:** None
-- **Request Body:** `multipart/form-data`
-  - `username`: string
-  - `password`: string
-  - `email`: string
-  - `whatsappNumber`: string
-  - `businessEmail`: string
-  - `gstNumber`: string
-  - `photo`: file (optional)
-- **Response:**
+### 4. Seller Signup
+**Endpoint:** `POST /api/v1/seller/signup`
+
+**Request:** `multipart/form-data` or JSON with `photoBase64`
+```json
+{
+  "username": "newseller",
+  "password": "Test@1234",
+  "email": "seller@example.com",
+  "whatsappNumber": "1234567890",
+  "businessEmail": "business@example.com",
+  "gstNumber": "GST123456",
+  "photoBase64": "base64_encoded_image_string"
+}
+```
+
+**Response:**
 ```json
 {
   "success": true,
@@ -205,18 +165,18 @@
 }
 ```
 
-### 10. Admin Login
-- **Method:** `POST`
-- **URL:** `/api/v1/admin/login`
-- **Auth:** None
-- **Request Body:**
+### 5. Admin Login
+**Endpoint:** `POST /api/v1/admin/login`
+
+**Request:**
 ```json
 {
-  "username": "AdisheshaR",
-  "password": "ADI@28RSCA"
+  "username": "admin",
+  "password": "ADI@28adi"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -224,18 +184,92 @@
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "type": "Bearer",
-    "username": "AdisheshaR",
+    "username": "admin",
     "roles": ["ROLE_ADMIN"]
   }
 }
 ```
 
-### 11. Get Current User (Auth Required)
-- **Method:** `GET`
-- **URL:** `/api/v1/auth/me`
-- **Auth:** Required (USER role)
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:**
+---
+
+## 📦 Public APIs (No Authentication Required)
+
+### 6. Get All Products
+**Endpoint:** `GET /api/v1/products`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": [
+    {
+      "id": 1,
+      "name": "Product Name",
+      "description": "Product description",
+      "price": 999.99,
+      "category": "Electronics",
+      "uniqueProductId": "PROD-123",
+      "imageUrl": "/product-image/1"
+    }
+  ]
+}
+```
+
+### 7. Get Product by ID
+**Endpoint:** `GET /api/v1/products/{id}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": 1,
+    "name": "Product Name",
+    "description": "Product description",
+    "price": 999.99,
+    "category": "Electronics",
+    "uniqueProductId": "PROD-123",
+    "imageUrl": "/product-image/1"
+  }
+}
+```
+
+### 8. Get Products by Category
+**Endpoint:** `GET /api/v1/products/category/{category}`
+
+**Example:** `/api/v1/products/category/Electronics`
+
+**Response:** Same as Get All Products
+
+### 9. Search Products
+**Endpoint:** `GET /api/v1/products/search?query={keyword}`
+
+**Example:** `/api/v1/products/search?query=laptop`
+
+**Response:** Same as Get All Products
+
+### 10. Get Product Image
+**Endpoint:** `GET /product-image/{id}`
+
+**Response:** Binary image data (JPEG/PNG)
+
+**Usage in React:**
+```jsx
+<img src={`${API_BASE_URL}/product-image/${product.id}`} />
+```
+
+---
+
+## 👤 User APIs (Requires USER Role JWT Token)
+
+**All endpoints require:** `Authorization: Bearer <token>`
+
+### 11. Get Current User
+**Endpoint:** `GET /api/v1/auth/me`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -251,16 +285,10 @@
 }
 ```
 
----
-
-## 👤 USER ENDPOINTS (Requires USER Role JWT Token)
-
-**All endpoints require:** `Authorization: Bearer <token>`
-
 ### 12. Get User Profile
-- **Method:** `GET`
-- **URL:** `/api/v1/user/profile`
-- **Response:**
+**Endpoint:** `GET /api/v1/user/profile`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -277,13 +305,14 @@
 ```
 
 ### 13. Update User Profile
-- **Method:** `PUT`
-- **URL:** `/api/v1/user/profile`
-- **Request Body:** `multipart/form-data`
-  - `alternateNumber`: string (optional)
-  - `address`: string (optional)
-  - `photo`: file (optional)
-- **Response:**
+**Endpoint:** `PUT /api/v1/user/profile`
+
+**Request:** `multipart/form-data`
+- `alternateNumber`: string (optional)
+- `address`: string (optional)
+- `photo`: file (optional)
+
+**Response:**
 ```json
 {
   "success": true,
@@ -291,15 +320,18 @@
   "data": {
     "id": 1,
     "username": "testuser",
-    ...
+    "phoneNumber": "1234567890",
+    "alternateNumber": "0987654321",
+    "address": "Updated Address",
+    "photoBase64": "base64_encoded_image"
   }
 }
 ```
 
 ### 14. Get User Home Data
-- **Method:** `GET`
-- **URL:** `/api/v1/user/home`
-- **Response:**
+**Endpoint:** `GET /api/v1/user/home`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -331,14 +363,14 @@
 
 ---
 
-## 🛒 CART ENDPOINTS (Requires USER Role JWT Token)
+## 🛒 Cart APIs (Requires USER Role JWT Token)
 
 **All endpoints require:** `Authorization: Bearer <token>`
 
 ### 15. Get Cart
-- **Method:** `GET`
-- **URL:** `/api/v1/cart`
-- **Response:**
+**Endpoint:** `GET /api/v1/cart`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -362,10 +394,11 @@
 ```
 
 ### 16. Add to Cart
-- **Method:** `POST`
-- **URL:** `/api/v1/cart/add/{productId}?quantity={qty}`
-- **Example:** `/api/v1/cart/add/1?quantity=2`
-- **Response:**
+**Endpoint:** `POST /api/v1/cart/add/{productId}?quantity={qty}`
+
+**Example:** `/api/v1/cart/add/1?quantity=2`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -375,9 +408,9 @@
 ```
 
 ### 17. Remove from Cart
-- **Method:** `DELETE`
-- **URL:** `/api/v1/cart/remove/{productId}`
-- **Response:**
+**Endpoint:** `DELETE /api/v1/cart/remove/{productId}`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -387,10 +420,11 @@
 ```
 
 ### 18. Update Cart Quantity
-- **Method:** `PUT`
-- **URL:** `/api/v1/cart/update/{productId}?quantity={qty}`
-- **Example:** `/api/v1/cart/update/1?quantity=5`
-- **Response:**
+**Endpoint:** `PUT /api/v1/cart/update/{productId}?quantity={qty}`
+
+**Example:** `/api/v1/cart/update/1?quantity=5`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -401,21 +435,27 @@
 
 ---
 
-## 💳 PAYMENT & ORDERS (Requires USER Role JWT Token)
+## 💳 Payment & Orders APIs (Requires USER Role JWT Token)
 
 **All endpoints require:** `Authorization: Bearer <token>`
 
 ### 19. Buy Now - Get Product Details
-- **Method:** `GET`
-- **URL:** `/api/v1/payment/buy-now/{productId}?quantity={qty}`
-- **Example:** `/api/v1/payment/buy-now/1?quantity=1`
-- **Response:**
+**Endpoint:** `GET /api/v1/payment/buy-now/{productId}?quantity={qty}`
+
+**Example:** `/api/v1/payment/buy-now/1?quantity=1`
+
+**Response:**
 ```json
 {
   "success": true,
   "message": "Success",
   "data": {
-    "product": { ... },
+    "product": {
+      "id": 1,
+      "name": "Product Name",
+      "price": 999.99,
+      "category": "Electronics"
+    },
     "quantity": 1,
     "amount": 999.99,
     "needsAddress": false
@@ -424,15 +464,16 @@
 ```
 
 ### 20. Save Address (Buy Now Flow)
-- **Method:** `POST`
-- **URL:** `/api/v1/payment/buy-now/address`
-- **Request Body:**
+**Endpoint:** `POST /api/v1/payment/buy-now/address`
+
+**Request:**
 ```json
 {
   "address": "789 Payment St"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -442,15 +483,17 @@
 ```
 
 ### 21. Create Razorpay Order
-- **Method:** `POST`
-- **URL:** `/api/v1/payment/create-order`
-- **Request Body:**
+**Endpoint:** `POST /api/v1/payment/create-order`
+
+**Request:**
 ```json
 {
   "amount": 50000
 }
 ```
-- **Response:**
+*Note: Amount is in paise (50000 = ₹500.00)*
+
+**Response:**
 ```json
 {
   "success": true,
@@ -464,9 +507,9 @@
 ```
 
 ### 22. Handle Payment Success
-- **Method:** `POST`
-- **URL:** `/api/v1/payment/success`
-- **Request Body:**
+**Endpoint:** `POST /api/v1/payment/success`
+
+**Request:**
 ```json
 {
   "razorpay_payment_id": "pay_123456",
@@ -476,7 +519,8 @@
   "isBuyNow": false
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -486,9 +530,9 @@
 ```
 
 ### 23. Get User Orders
-- **Method:** `GET`
-- **URL:** `/api/v1/payment/orders`
-- **Response:**
+**Endpoint:** `GET /api/v1/payment/orders`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -508,14 +552,14 @@
 
 ---
 
-## 🏪 SELLER ENDPOINTS (Requires SELLER Role JWT Token)
+## 🏪 Seller APIs (Requires SELLER Role JWT Token)
 
 **All endpoints require:** `Authorization: Bearer <token>`
 
 ### 24. Get Seller Profile
-- **Method:** `GET`
-- **URL:** `/api/v1/seller/profile`
-- **Response:**
+**Endpoint:** `GET /api/v1/seller/profile`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -533,14 +577,15 @@
 ```
 
 ### 25. Update Seller Profile
-- **Method:** `PUT`
-- **URL:** `/api/v1/seller/profile`
-- **Request Body:** `multipart/form-data`
-  - `whatsappNumber`: string (optional)
-  - `businessEmail`: string (optional)
-  - `gstNumber`: string (optional)
-  - `photo`: file (optional)
-- **Response:**
+**Endpoint:** `PUT /api/v1/seller/profile`
+
+**Request:** `multipart/form-data`
+- `whatsappNumber`: string (optional)
+- `businessEmail`: string (optional)
+- `gstNumber`: string (optional)
+- `photo`: file (optional)
+
+**Response:**
 ```json
 {
   "success": true,
@@ -550,9 +595,9 @@
 ```
 
 ### 26. Get Seller Dashboard
-- **Method:** `GET`
-- **URL:** `/api/v1/seller/dashboard`
-- **Response:**
+**Endpoint:** `GET /api/v1/seller/dashboard`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -562,16 +607,17 @@
 ```
 
 ### 27. Upload Product
-- **Method:** `POST`
-- **URL:** `/api/v1/seller/products`
-- **Request Body:** `multipart/form-data`
-  - `productName`: string
-  - `productDescription`: string
-  - `productPrice`: number
-  - `productCategory`: string
-  - `uniqueProductId`: string (optional)
-  - `productImage`: file
-- **Response:**
+**Endpoint:** `POST /api/v1/seller/products`
+
+**Request:** `multipart/form-data`
+- `productName`: string
+- `productDescription`: string
+- `productPrice`: number
+- `productCategory`: string
+- `uniqueProductId`: string (optional)
+- `productImage`: file
+
+**Response:**
 ```json
 {
   "success": true,
@@ -587,9 +633,9 @@
 ```
 
 ### 28. Get My Products
-- **Method:** `GET`
-- **URL:** `/api/v1/seller/products`
-- **Response:**
+**Endpoint:** `GET /api/v1/seller/products`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -607,24 +653,24 @@
 ```
 
 ### 29. Get Seller Home
-- **Method:** `GET`
-- **URL:** `/api/v1/seller/home`
-- **Response:** Same as Get Seller Profile
+**Endpoint:** `GET /api/v1/seller/home`
+
+**Response:** Same as Get Seller Profile
 
 ---
 
-## 🔐 ADMIN ENDPOINTS (Requires ADMIN Role JWT Token)
+## 🔐 Admin APIs (Requires ADMIN Role JWT Token)
 
 **All endpoints require:** `Authorization: Bearer <token>`
 
 **Admin Credentials:**
-- Username: `AdisheshaR`
-- Password: `ADI@28RSCA`
+- Username: `admin`
+- Password: `ADI@28adi`
 
 ### 30. Get All Users
-- **Method:** `GET`
-- **URL:** `/api/v1/admin/users`
-- **Response:**
+**Endpoint:** `GET /api/v1/admin/users`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -642,9 +688,9 @@
 ```
 
 ### 31. Update User
-- **Method:** `PUT`
-- **URL:** `/api/v1/admin/users/{id}`
-- **Request Body:**
+**Endpoint:** `PUT /api/v1/admin/users/{id}`
+
+**Request:**
 ```json
 {
   "username": "updateduser",
@@ -653,7 +699,8 @@
   "address": "Updated Address"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -663,9 +710,9 @@
 ```
 
 ### 32. Delete User
-- **Method:** `DELETE`
-- **URL:** `/api/v1/admin/users/{id}`
-- **Response:**
+**Endpoint:** `DELETE /api/v1/admin/users/{id}`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -675,9 +722,9 @@
 ```
 
 ### 33. Get All Sellers
-- **Method:** `GET`
-- **URL:** `/api/v1/admin/sellers`
-- **Response:**
+**Endpoint:** `GET /api/v1/admin/sellers`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -695,9 +742,9 @@
 ```
 
 ### 34. Update Seller
-- **Method:** `PUT`
-- **URL:** `/api/v1/admin/sellers/{id}`
-- **Request Body:**
+**Endpoint:** `PUT /api/v1/admin/sellers/{id}`
+
+**Request:**
 ```json
 {
   "username": "updatedseller",
@@ -707,7 +754,8 @@
   "gstNumber": "GST999999"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -717,9 +765,9 @@
 ```
 
 ### 35. Delete Seller
-- **Method:** `DELETE`
-- **URL:** `/api/v1/admin/sellers/{id}`
-- **Response:**
+**Endpoint:** `DELETE /api/v1/admin/sellers/{id}`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -728,10 +776,10 @@
 }
 ```
 
-### 36. Get All Products
-- **Method:** `GET`
-- **URL:** `/api/v1/admin/products`
-- **Response:**
+### 36. Get All Products (Admin)
+**Endpoint:** `GET /api/v1/admin/products`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -750,9 +798,9 @@
 ```
 
 ### 37. Update Product
-- **Method:** `PUT`
-- **URL:** `/api/v1/admin/products/{id}`
-- **Request Body:**
+**Endpoint:** `PUT /api/v1/admin/products/{id}`
+
+**Request:**
 ```json
 {
   "name": "Updated Product Name",
@@ -762,7 +810,8 @@
   "uniqueProductId": "PROD-UPDATED"
 }
 ```
-- **Response:**
+
+**Response:**
 ```json
 {
   "success": true,
@@ -772,9 +821,9 @@
 ```
 
 ### 38. Delete Product
-- **Method:** `DELETE`
-- **URL:** `/api/v1/admin/products/{id}`
-- **Response:**
+**Endpoint:** `DELETE /api/v1/admin/products/{id}`
+
+**Response:**
 ```json
 {
   "success": true,
@@ -785,36 +834,9 @@
 
 ---
 
-## 🔑 AUTHENTICATION FLOW
+## ⚠️ Error Handling
 
-### Step 1: Login
-```bash
-POST /api/v1/auth/login
-{
-  "username": "testuser",
-  "password": "Test@1234"
-}
-```
-
-### Step 2: Get Token
-```json
-{
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
-
-### Step 3: Use Token
-```bash
-GET /api/v1/user/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
----
-
-## 📊 HTTP STATUS CODES
-
+### HTTP Status Codes
 - `200 OK` - Request successful
 - `201 Created` - Resource created successfully
 - `400 Bad Request` - Invalid request data
@@ -823,11 +845,18 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - `404 Not Found` - Resource not found
 - `500 Internal Server Error` - Server error
 
----
+### Error Response Format
+```json
+{
+  "success": false,
+  "message": "Error message here",
+  "data": null
+}
+```
 
-## ⚠️ ERROR RESPONSES
+### Common Errors
 
-### Missing Token
+#### Missing Token (401)
 ```json
 {
   "success": false,
@@ -836,7 +865,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### Invalid Token
+#### Invalid/Expired Token (401)
 ```json
 {
   "success": false,
@@ -845,7 +874,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### Access Denied
+#### Access Denied (403)
 ```json
 {
   "success": false,
@@ -854,7 +883,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### Validation Error
+#### Validation Error (400)
 ```json
 {
   "success": false,
@@ -865,28 +894,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 🧪 QUICK TEST EXAMPLES
+## 💻 Code Examples
 
-### Using curl:
+### JavaScript/Fetch API
 
-```bash
-# 1. Login
-TOKEN=$(curl -s -X POST http://localhost:8082/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test@1234"}' \
-  | jq -r '.data.token')
-
-# 2. Get Profile
-curl -X GET http://localhost:8082/api/v1/user/profile \
-  -H "Authorization: Bearer $TOKEN"
-
-# 3. Add to Cart
-curl -X POST "http://localhost:8082/api/v1/cart/add/1?quantity=2" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### Using JavaScript (Fetch API):
-
+#### Login and Store Token
 ```javascript
 // Login
 const loginResponse = await fetch('http://localhost:8082/api/v1/auth/login', {
@@ -897,16 +909,140 @@ const loginResponse = await fetch('http://localhost:8082/api/v1/auth/login', {
 const loginData = await loginResponse.json();
 const token = loginData.data.token;
 
-// Get Profile
-const profileResponse = await fetch('http://localhost:8082/api/v1/user/profile', {
+// Store token
+localStorage.setItem('jwt_token', token);
+```
+
+#### Get User Profile
+```javascript
+const token = localStorage.getItem('jwt_token');
+
+const response = await fetch('http://localhost:8082/api/v1/user/profile', {
   headers: { 'Authorization': `Bearer ${token}` }
 });
-const profileData = await profileResponse.json();
+const data = await response.json();
+console.log(data);
+```
+
+#### Add to Cart
+```javascript
+const token = localStorage.getItem('jwt_token');
+
+const response = await fetch('http://localhost:8082/api/v1/cart/add/1?quantity=2', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const data = await response.json();
+```
+
+#### Update Profile with File Upload
+```javascript
+const token = localStorage.getItem('jwt_token');
+const formData = new FormData();
+formData.append('address', 'New Address');
+formData.append('photo', fileInput.files[0]);
+
+const response = await fetch('http://localhost:8082/api/v1/user/profile', {
+  method: 'PUT',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: formData
+});
+const data = await response.json();
+```
+
+#### Upload Product (Seller)
+```javascript
+const token = localStorage.getItem('jwt_token');
+const formData = new FormData();
+formData.append('productName', 'New Product');
+formData.append('productDescription', 'Product description');
+formData.append('productPrice', '999.99');
+formData.append('productCategory', 'Electronics');
+formData.append('productImage', fileInput.files[0]);
+
+const response = await fetch('http://localhost:8082/api/v1/seller/products', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: formData
+});
+const data = await response.json();
+```
+
+### React Example
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function ProductList() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('http://localhost:8082/api/v1/products')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setProducts(data.data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      {products.map(product => (
+        <div key={product.id}>
+          <img src={`http://localhost:8082${product.imageUrl}`} alt={product.name} />
+          <h3>{product.name}</h3>
+          <p>${product.price}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Axios Example
+
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8082',
+});
+
+// Add token to all requests
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Login
+const login = async (username, password) => {
+  const response = await api.post('/api/v1/auth/login', { username, password });
+  localStorage.setItem('jwt_token', response.data.data.token);
+  return response.data;
+};
+
+// Get profile
+const getProfile = async () => {
+  const response = await api.get('/api/v1/user/profile');
+  return response.data;
+};
 ```
 
 ---
 
-## 📋 ENDPOINT SUMMARY
+## 📊 Complete Endpoint Summary
 
 | # | Method | Endpoint | Auth | Role |
 |---|--------|----------|------|------|
@@ -953,17 +1089,28 @@ const profileData = await profileResponse.json();
 
 ---
 
-## 🔒 SECURITY NOTES
+## 🔒 Security Notes
 
-1. **JWT Token Expiration:** 24 hours (configurable)
+1. **JWT Token Expiration:** 24 hours
 2. **Token Storage:** Store in `localStorage` or httpOnly cookie
 3. **Password Requirements:** 
    - Minimum 8 characters
    - At least one uppercase, lowercase, digit, and special character
-4. **CORS:** Configured for `http://localhost:3000` and `http://localhost:5173`
+4. **CORS:** Configured for production React app URLs (set in Render environment variables)
 5. **CSRF:** Disabled for API endpoints (JWT is CSRF-resistant)
 
 ---
 
-**Last Updated:** 2026-02-16
-**Version:** 1.0
+## 📝 Important Notes
+
+1. **Image URLs:** Product images use `/product-image/{id}` - prepend base URL in frontend
+2. **Profile Photos:** Returned as Base64 strings in `photoBase64` field
+3. **Amount Format:** Razorpay amounts are in paise (multiply by 100 for rupees)
+4. **File Uploads:** Use `multipart/form-data` for file uploads
+5. **Error Handling:** Always check `success` field before using `data`
+
+---
+
+**Last Updated:** 2026-02-16  
+**Version:** 1.0  
+**Production API Base URL:** `https://react-frontend-9wcj.onrender.com`
