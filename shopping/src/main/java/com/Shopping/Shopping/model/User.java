@@ -28,6 +28,9 @@ public class User {
     
     private String address;
 
+    private String email;
+    private boolean emailVerified = false;
+
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BYTEA")
     private byte[] photo;

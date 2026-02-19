@@ -5,6 +5,7 @@ import com.Shopping.Shopping.dto.UserDTO;
 import com.Shopping.Shopping.model.User;
 import com.Shopping.Shopping.repository.UserRepository;
 import com.Shopping.Shopping.security.JwtTokenProvider;
+import com.Shopping.Shopping.service.OtpService;
 import com.Shopping.Shopping.service.UserDetailsServiceImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -26,20 +28,40 @@ public class ApiAuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
+    private final OtpService otpService;
 
     public ApiAuthController(UserRepository userRepository, 
                            PasswordEncoder passwordEncoder,
                            JwtTokenProvider tokenProvider,
-                           UserDetailsServiceImpl userDetailsService) {
+                           UserDetailsServiceImpl userDetailsService,
+                           OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
+        this.otpService = otpService;
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserDTO>> signup(@RequestBody SignupRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> signup(@RequestBody SignupRequest request) {
         try {
+            // Validate email
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email is required"));
+            }
+            
+            if (!isValidEmail(request.getEmail())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Invalid email format"));
+            }
+            
+            // Check if email already exists
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email already registered"));
+            }
+            
             if (userRepository.findByUsername(request.getUsername()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("Username already exists"));
@@ -50,18 +72,100 @@ public class ApiAuthController {
                     .body(ApiResponse.error("Password must be at least 8 characters long and include an uppercase letter, lowercase letter, digit, and special character."));
             }
 
+            // Create user but mark as unverified
             User user = new User();
             user.setUsername(request.getUsername());
             user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setEmail(request.getEmail());
             user.setPhoneNumber(request.getPhoneNumber());
             user.setAddress(request.getAddress());
+            user.setEmailVerified(false);
             
             User savedUser = userRepository.saveAndFlush(user);
+            
+            // Generate and send OTP
+            otpService.generateAndSendOtp(request.getEmail(), "USER");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
+            response.put("userId", savedUser.getId());
+            response.put("email", savedUser.getEmail());
+            
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("User registered successfully", convertToDTO(savedUser)));
+                .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Registration failed: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyEmail(@RequestBody VerifyEmailRequest request) {
+        try {
+            if (request.getEmail() == null || request.getOtp() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email and OTP are required"));
+            }
+            
+            // Verify OTP
+            if (!otpService.verifyOtp(request.getEmail(), request.getOtp(), "USER")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Invalid or expired OTP"));
+            }
+            
+            // Find user by email
+            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("User not found"));
+            }
+            
+            // Mark email as verified
+            User user = userOpt.get();
+            user.setEmailVerified(true);
+            userRepository.save(user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Email verified successfully");
+            response.put("user", convertToDTO(user));
+            
+            return ResponseEntity.ok(ApiResponse.success("Email verified successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Verification failed: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> resendOtp(@RequestBody ResendOtpRequest request) {
+        try {
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email is required"));
+            }
+            
+            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("User not found"));
+            }
+            
+            User user = userOpt.get();
+            if (user.isEmailVerified()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email already verified"));
+            }
+            
+            // Generate and send new OTP
+            otpService.generateAndSendOtp(request.getEmail(), "USER");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "OTP resent to your email");
+            
+            return ResponseEntity.ok(ApiResponse.success("OTP resent successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Failed to resend OTP: " + e.getMessage()));
         }
     }
 
@@ -77,10 +181,20 @@ public class ApiAuthController {
                     .body(ApiResponse.error("Invalid username or password"));
             }
 
+            // Check if email is verified (only if email exists - grandfather existing users)
+            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                // Only check email verification if email exists (backward compatibility)
+                if (user.getEmail() != null && !user.getEmail().isEmpty() && !user.isEmailVerified()) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("Please verify your email before logging in. Check your email for OTP or use /resend-otp endpoint."));
+                }
+            }
+
             // Generate token
             String token = tokenProvider.generateToken(userDetails);
 
-            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
             UserDTO userDTO = userOpt.map(this::convertToDTO).orElse(null);
 
             Map<String, Object> response = new HashMap<>();
@@ -118,6 +232,8 @@ public class ApiAuthController {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setEmailVerified(user.isEmailVerified());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setAlternateNumber(user.getAlternateNumber());
         dto.setAddress(user.getAddress());
@@ -133,10 +249,17 @@ public class ApiAuthController {
             password.matches(".*[!@#$%^&*()_+=<>?].*");
     }
 
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+        Pattern pattern = Pattern.compile(emailRegex);
+        return pattern.matcher(email).matches();
+    }
+
     @lombok.Data
     static class SignupRequest {
         private String username;
         private String password;
+        private String email;
         private String phoneNumber;
         private String address;
     }
@@ -145,5 +268,16 @@ public class ApiAuthController {
     static class LoginRequest {
         private String username;
         private String password;
+    }
+
+    @lombok.Data
+    static class VerifyEmailRequest {
+        private String email;
+        private String otp;
+    }
+
+    @lombok.Data
+    static class ResendOtpRequest {
+        private String email;
     }
 }

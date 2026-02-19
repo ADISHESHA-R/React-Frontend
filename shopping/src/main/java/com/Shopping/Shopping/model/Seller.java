@@ -30,6 +30,8 @@ public class Seller {
     
     private String gstNumber;
 
+    private boolean emailVerified = false;
+
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BYTEA")
     private byte[] photo;
