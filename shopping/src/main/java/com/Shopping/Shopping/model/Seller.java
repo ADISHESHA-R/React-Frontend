@@ -30,7 +30,8 @@ public class Seller {
     
     private String gstNumber;
 
-    private boolean emailVerified = false;
+    @Column(nullable = true)
+    private Boolean emailVerified = false;
 
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BYTEA")
@@ -38,5 +39,10 @@ public class Seller {
 
     public String getPhotoBase64() {
         return this.photo != null ? Base64.getEncoder().encodeToString(this.photo) : null;
+    }
+    
+    // Helper method for backward compatibility
+    public boolean isEmailVerified() {
+        return emailVerified != null && emailVerified;
     }
 }
