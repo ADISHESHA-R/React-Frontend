@@ -21,13 +21,32 @@ public class OtpService {
     private final EmailService emailService;
     private final Random random = new Random();
     
+    // Result class to return both OTP and email status
+    public static class OtpResult {
+        private final String otp;
+        private final boolean emailSent;
+        
+        public OtpResult(String otp, boolean emailSent) {
+            this.otp = otp;
+            this.emailSent = emailSent;
+        }
+        
+        public String getOtp() {
+            return otp;
+        }
+        
+        public boolean isEmailSent() {
+            return emailSent;
+        }
+    }
+    
     public OtpService(EmailOtpRepository otpRepository, EmailService emailService) {
         this.otpRepository = otpRepository;
         this.emailService = emailService;
     }
     
     @Transactional
-    public String generateAndSendOtp(String email, String userType) {
+    public OtpResult generateAndSendOtp(String email, String userType) {
         try {
             logger.info("=== OTP GENERATION STARTED ===");
             logger.info("Email: {}, UserType: {}", email, userType);
@@ -65,7 +84,7 @@ public class OtpService {
                            email, userType, otp);
             }
             
-            return otp;
+            return new OtpResult(otp, emailSent);
         } catch (Exception e) {
             logger.error("=== OTP GENERATION FAILED ===");
             logger.error("Error generating OTP for email: {}, userType: {}", email, userType, e);

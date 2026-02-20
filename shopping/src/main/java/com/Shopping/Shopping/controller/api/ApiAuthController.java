@@ -106,16 +106,29 @@ public class ApiAuthController {
             
             // Generate and send OTP
             logger.info("Calling OTP service to generate and send OTP for email: {}", request.getEmail());
-            String generatedOtp = otpService.generateAndSendOtp(request.getEmail(), "USER");
-            logger.info("OTP service returned. OTP generated: {}", generatedOtp != null ? "YES" : "NO");
+            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "USER");
+            logger.info("OTP service returned. OTP generated: {}, Email sent: {}", 
+                       otpResult != null ? "YES" : "NO", 
+                       otpResult != null && otpResult.isEmailSent());
             
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
             response.put("userId", savedUser.getId());
             response.put("email", savedUser.getEmail());
             
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
+            if (otpResult != null && otpResult.isEmailSent()) {
+                response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
+            } else {
+                // Email failed - return OTP in response for testing (can be removed in production)
+                response.put("message", "Registration successful. OTP generated but email delivery failed. Please check logs or use resend-otp endpoint.");
+                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
+                response.put("emailDeliveryFailed", true);
+                logger.warn("Email delivery failed for user signup. Returning OTP in response for testing: {}", 
+                           otpResult != null ? otpResult.getOtp() : "N/A");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Registration successful. Email delivery failed - OTP available in response.", response));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Registration failed: " + e.getMessage()));
@@ -181,10 +194,16 @@ public class ApiAuthController {
             }
             
             // Generate and send new OTP (this method already has @Transactional)
-            otpService.generateAndSendOtp(request.getEmail(), "USER");
+            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "USER");
             
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "OTP resent to your email");
+            if (otpResult != null && otpResult.isEmailSent()) {
+                response.put("message", "OTP resent to your email");
+            } else {
+                response.put("message", "OTP generated but email delivery failed. Please check logs or try again.");
+                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
+                response.put("emailDeliveryFailed", true);
+            }
             
             return ResponseEntity.ok(ApiResponse.success("OTP resent successfully", response));
         } catch (Exception e) {

@@ -11,6 +11,8 @@ import com.Shopping.Shopping.security.JwtTokenProvider;
 import com.Shopping.Shopping.service.OtpService;
 import com.Shopping.Shopping.service.ProductService;
 import com.Shopping.Shopping.service.SellerDetailsService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,6 +34,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/seller")
 public class ApiSellerController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ApiSellerController.class);
 
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
@@ -180,15 +184,26 @@ public class ApiSellerController {
             Seller savedSeller = sellerRepository.saveAndFlush(seller);
             
             // Generate and send OTP
-            otpService.generateAndSendOtp(request.getEmail(), "SELLER");
+            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "SELLER");
             
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
             response.put("sellerId", savedSeller.getId());
             response.put("email", savedSeller.getEmail());
             
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
+            if (otpResult != null && otpResult.isEmailSent()) {
+                response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
+            } else {
+                // Email failed - return OTP in response for testing (can be removed in production)
+                response.put("message", "Registration successful. OTP generated but email delivery failed. Please check logs or use resend-otp endpoint.");
+                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
+                response.put("emailDeliveryFailed", true);
+                logger.warn("Email delivery failed for seller signup. Returning OTP in response for testing: {}", 
+                           otpResult != null ? otpResult.getOtp() : "N/A");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Registration successful. Email delivery failed - OTP available in response.", response));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Registration failed: " + e.getMessage()));
@@ -254,10 +269,16 @@ public class ApiSellerController {
             }
             
             // Generate and send new OTP (this method already has @Transactional)
-            otpService.generateAndSendOtp(request.getEmail(), "SELLER");
+            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "SELLER");
             
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "OTP resent to your email");
+            if (otpResult != null && otpResult.isEmailSent()) {
+                response.put("message", "OTP resent to your email");
+            } else {
+                response.put("message", "OTP generated but email delivery failed. Please check logs or try again.");
+                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
+                response.put("emailDeliveryFailed", true);
+            }
             
             return ResponseEntity.ok(ApiResponse.success("OTP resent successfully", response));
         } catch (Exception e) {
