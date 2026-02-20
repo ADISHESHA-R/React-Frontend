@@ -124,7 +124,16 @@ public class SecurityConfig {
             .httpBasic(basic -> basic.disable())
             .logout(logout -> logout.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/products/**", "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/seller/signup", "/api/v1/seller/login", "/api/v1/admin/login").permitAll()
+                .requestMatchers("/api/v1/products/**", 
+                                 "/api/v1/auth/signup", 
+                                 "/api/v1/auth/login",
+                                 "/api/v1/auth/verify-email",
+                                 "/api/v1/auth/resend-otp",
+                                 "/api/v1/seller/signup", 
+                                 "/api/v1/seller/login",
+                                 "/api/v1/seller/verify-email",
+                                 "/api/v1/seller/resend-otp",
+                                 "/api/v1/admin/login").permitAll()
                 .requestMatchers("/api/v1/user/**", "/api/v1/cart/**", "/api/v1/payment/**").hasRole("USER")
                 .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -166,7 +175,10 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/seller/signup", "/api/v1/seller/login").permitAll()
+                        .requestMatchers("/api/v1/seller/signup", 
+                                        "/api/v1/seller/login",
+                                        "/api/v1/seller/verify-email",
+                                        "/api/v1/seller/resend-otp").permitAll()
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                         .anyRequest().authenticated()
                 )
