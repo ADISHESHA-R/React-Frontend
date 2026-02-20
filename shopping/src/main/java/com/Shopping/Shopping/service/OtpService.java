@@ -26,6 +26,7 @@ public class OtpService {
         this.emailService = emailService;
     }
     
+    @Transactional
     public String generateAndSendOtp(String email, String userType) {
         // Generate 6-digit OTP
         String otp = String.format("%06d", random.nextInt(1000000));
