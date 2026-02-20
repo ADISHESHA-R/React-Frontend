@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -152,6 +153,7 @@ public class ApiAuthController {
     }
 
     @PostMapping("/resend-otp")
+    @Transactional(readOnly = false)
     public ResponseEntity<ApiResponse<Map<String, Object>>> resendOtp(@RequestBody ResendOtpRequest request) {
         try {
             if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
@@ -171,7 +173,7 @@ public class ApiAuthController {
                     .body(ApiResponse.error("Email already verified"));
             }
             
-            // Generate and send new OTP
+            // Generate and send new OTP (this method already has @Transactional)
             otpService.generateAndSendOtp(request.getEmail(), "USER");
             
             Map<String, Object> response = new HashMap<>();
