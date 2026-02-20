@@ -7,6 +7,8 @@ import com.Shopping.Shopping.repository.UserRepository;
 import com.Shopping.Shopping.security.JwtTokenProvider;
 import com.Shopping.Shopping.service.OtpService;
 import com.Shopping.Shopping.service.UserDetailsServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +26,8 @@ import java.util.regex.Pattern;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class ApiAuthController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ApiAuthController.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -98,9 +102,12 @@ public class ApiAuthController {
             user.setEmailVerified(false);
             
             User savedUser = userRepository.saveAndFlush(user);
+            logger.info("User saved successfully with ID: {}, Email: {}", savedUser.getId(), savedUser.getEmail());
             
             // Generate and send OTP
-            otpService.generateAndSendOtp(request.getEmail(), "USER");
+            logger.info("Calling OTP service to generate and send OTP for email: {}", request.getEmail());
+            String generatedOtp = otpService.generateAndSendOtp(request.getEmail(), "USER");
+            logger.info("OTP service returned. OTP generated: {}", generatedOtp != null ? "YES" : "NO");
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");

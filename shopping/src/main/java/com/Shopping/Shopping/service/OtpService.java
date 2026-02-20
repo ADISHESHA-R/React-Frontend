@@ -28,30 +28,49 @@ public class OtpService {
     
     @Transactional
     public String generateAndSendOtp(String email, String userType) {
-        // Generate 6-digit OTP
-        String otp = String.format("%06d", random.nextInt(1000000));
-        
-        // Invalidate previous OTPs for this email
-        otpRepository.markAllAsUsed(email, userType);
-        
-        // Save new OTP
-        EmailOtp emailOtp = new EmailOtp();
-        emailOtp.setEmail(email);
-        emailOtp.setOtp(otp);
-        emailOtp.setUserType(userType);
-        otpRepository.save(emailOtp);
-        
-        // Send email (non-blocking - don't fail if email service is unavailable)
-        boolean emailSent = emailService.sendOtpEmail(email, otp, userType);
-        
-        if (emailSent) {
-            logger.info("OTP generated and sent to {} for {}", email, userType);
-        } else {
-            logger.warn("OTP generated for {} ({}) but email failed to send. OTP: {} - Check logs or use resend-otp endpoint", 
-                       email, userType, otp);
+        try {
+            logger.info("=== OTP GENERATION STARTED ===");
+            logger.info("Email: {}, UserType: {}", email, userType);
+            
+            // Generate 6-digit OTP
+            String otp = String.format("%06d", random.nextInt(1000000));
+            logger.info("Generated OTP: {}", otp);
+            
+            // Invalidate previous OTPs for this email
+            logger.info("Invalidating previous OTPs for email: {}", email);
+            otpRepository.markAllAsUsed(email, userType);
+            logger.info("Previous OTPs invalidated");
+            
+            // Save new OTP
+            EmailOtp emailOtp = new EmailOtp();
+            emailOtp.setEmail(email);
+            emailOtp.setOtp(otp);
+            emailOtp.setUserType(userType);
+            
+            logger.info("Saving OTP to database...");
+            EmailOtp savedOtp = otpRepository.save(emailOtp);
+            logger.info("OTP saved successfully with ID: {}", savedOtp.getId());
+            logger.info("OTP expires at: {}", savedOtp.getExpiresAt());
+            
+            // Send email (non-blocking - don't fail if email service is unavailable)
+            logger.info("Attempting to send email...");
+            boolean emailSent = emailService.sendOtpEmail(email, otp, userType);
+            
+            if (emailSent) {
+                logger.info("=== OTP GENERATION COMPLETE - Email sent successfully ===");
+                logger.info("OTP generated and sent to {} for {}", email, userType);
+            } else {
+                logger.warn("=== OTP GENERATION COMPLETE - Email failed but OTP saved ===");
+                logger.warn("OTP generated for {} ({}) but email failed to send. OTP: {} - Check logs or use resend-otp endpoint", 
+                           email, userType, otp);
+            }
+            
+            return otp;
+        } catch (Exception e) {
+            logger.error("=== OTP GENERATION FAILED ===");
+            logger.error("Error generating OTP for email: {}, userType: {}", email, userType, e);
+            throw new RuntimeException("Failed to generate OTP: " + e.getMessage(), e);
         }
-        
-        return otp;
     }
     
     public boolean verifyOtp(String email, String otp, String userType) {
