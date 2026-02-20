@@ -41,10 +41,16 @@ public class OtpService {
         emailOtp.setUserType(userType);
         otpRepository.save(emailOtp);
         
-        // Send email
-        emailService.sendOtpEmail(email, otp, userType);
+        // Send email (non-blocking - don't fail if email service is unavailable)
+        boolean emailSent = emailService.sendOtpEmail(email, otp, userType);
         
-        logger.info("OTP generated and sent to {} for {}", email, userType);
+        if (emailSent) {
+            logger.info("OTP generated and sent to {} for {}", email, userType);
+        } else {
+            logger.warn("OTP generated for {} ({}) but email failed to send. OTP: {} - Check logs or use resend-otp endpoint", 
+                       email, userType, otp);
+        }
+        
         return otp;
     }
     

@@ -21,7 +21,7 @@ public class EmailService {
         this.mailSender = mailSender;
     }
     
-    public void sendOtpEmail(String toEmail, String otp, String userType) {
+    public boolean sendOtpEmail(String toEmail, String otp, String userType) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -38,9 +38,13 @@ public class EmailService {
             
             mailSender.send(message);
             logger.info("OTP email sent successfully to: {}", toEmail);
+            return true;
         } catch (Exception e) {
-            logger.error("Failed to send OTP email to: {}", toEmail, e);
-            throw new RuntimeException("Failed to send OTP email: " + e.getMessage());
+            logger.error("Failed to send OTP email to: {} - Error: {}", toEmail, e.getMessage());
+            logger.warn("OTP for {} ({}): {} - Please check application logs if email service is unavailable", toEmail, userType, otp);
+            // Don't throw exception - allow signup to succeed even if email fails
+            // OTP is still saved in database and can be retrieved via resend-otp
+            return false;
         }
     }
 }
