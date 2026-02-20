@@ -23,6 +23,8 @@ public class EmailService {
     
     public boolean sendOtpEmail(String toEmail, String otp, String userType) {
         try {
+            logger.info("Attempting to send email to: {}", toEmail);
+            
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
@@ -36,14 +38,18 @@ public class EmailService {
                 userType, otp
             ));
             
+            logger.info("Sending email message...");
             mailSender.send(message);
             logger.info("OTP email sent successfully to: {}", toEmail);
             return true;
-        } catch (Exception e) {
-            logger.error("Failed to send OTP email to: {} - Error: {}", toEmail, e.getMessage());
+        } catch (org.springframework.mail.MailException e) {
+            logger.error("MailException sending OTP email to: {} - Error: {}", toEmail, e.getMessage());
+            logger.error("Exception class: {}, Cause: {}", e.getClass().getName(), e.getCause());
             logger.warn("OTP for {} ({}): {} - Please check application logs if email service is unavailable", toEmail, userType, otp);
-            // Don't throw exception - allow signup to succeed even if email fails
-            // OTP is still saved in database and can be retrieved via resend-otp
+            return false;
+        } catch (Exception e) {
+            logger.error("Unexpected error sending OTP email to: {} - Error: {}", toEmail, e.getMessage(), e);
+            logger.warn("OTP for {} ({}): {} - Please check application logs if email service is unavailable", toEmail, userType, otp);
             return false;
         }
     }
