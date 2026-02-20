@@ -57,14 +57,29 @@ public class ApiAuthController {
             }
             
             // Check if email already exists
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email already registered"));
+            Optional<User> existingUserByEmail = userRepository.findByEmail(request.getEmail());
+            if (existingUserByEmail.isPresent()) {
+                User existingUser = existingUserByEmail.get();
+                // If email is verified, reject registration
+                if (existingUser.isEmailVerified()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Email already registered and verified"));
+                }
+                // If email exists but not verified, delete old record to allow re-registration
+                userRepository.delete(existingUser);
             }
             
-            if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Username already exists"));
+            // Check if username already exists (only if verified)
+            Optional<User> existingUserByUsername = userRepository.findByUsername(request.getUsername());
+            if (existingUserByUsername.isPresent()) {
+                User existingUser = existingUserByUsername.get();
+                // If username exists and email is verified, reject
+                if (existingUser.isEmailVerified()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Username already exists"));
+                }
+                // If username exists but email not verified, delete old record
+                userRepository.delete(existingUser);
             }
 
             if (!isValidPassword(request.getPassword())) {

@@ -125,14 +125,29 @@ public class ApiSellerController {
             }
 
             // Check if email already exists
-            if (sellerRepository.findByEmail(request.getEmail()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email already registered"));
+            Optional<Seller> existingSellerByEmail = sellerRepository.findByEmail(request.getEmail());
+            if (existingSellerByEmail.isPresent()) {
+                Seller existingSeller = existingSellerByEmail.get();
+                // If email is verified, reject registration
+                if (existingSeller.isEmailVerified()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Email already registered and verified"));
+                }
+                // If email exists but not verified, delete old record to allow re-registration
+                sellerRepository.delete(existingSeller);
             }
 
-            if (sellerRepository.findByUsername(request.getUsername()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Username already exists"));
+            // Check if username already exists (only if verified)
+            Optional<Seller> existingSellerByUsername = sellerRepository.findByUsername(request.getUsername());
+            if (existingSellerByUsername.isPresent()) {
+                Seller existingSeller = existingSellerByUsername.get();
+                // If username exists and email is verified, reject
+                if (existingSeller.isEmailVerified()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Username already exists"));
+                }
+                // If username exists but email not verified, delete old record
+                sellerRepository.delete(existingSeller);
             }
 
             if (!isValidPassword(request.getPassword())) {
