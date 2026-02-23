@@ -228,7 +228,6 @@ public class ApiAdminController {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
-        dto.setEmailVerified(user.isEmailVerified());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setAlternateNumber(user.getAlternateNumber());
         dto.setAddress(user.getAddress());
@@ -241,7 +240,6 @@ public class ApiAdminController {
         dto.setId(seller.getId());
         dto.setUsername(seller.getUsername());
         dto.setEmail(seller.getEmail());
-        dto.setEmailVerified(seller.isEmailVerified());
         dto.setWhatsappNumber(seller.getWhatsappNumber());
         dto.setBusinessEmail(seller.getBusinessEmail());
         dto.setGstNumber(seller.getGstNumber());

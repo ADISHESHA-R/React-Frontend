@@ -8,7 +8,6 @@ import com.Shopping.Shopping.model.Seller;
 import com.Shopping.Shopping.repository.ProductRepository;
 import com.Shopping.Shopping.repository.SellerRepository;
 import com.Shopping.Shopping.security.JwtTokenProvider;
-import com.Shopping.Shopping.service.OtpService;
 import com.Shopping.Shopping.service.ProductService;
 import com.Shopping.Shopping.service.SellerDetailsService;
 import org.slf4j.Logger;
@@ -19,7 +18,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -43,22 +41,19 @@ public class ApiSellerController {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final SellerDetailsService sellerDetailsService;
-    private final OtpService otpService;
 
     public ApiSellerController(SellerRepository sellerRepository,
                                ProductRepository productRepository,
                                ProductService productService,
                                PasswordEncoder passwordEncoder,
                                JwtTokenProvider tokenProvider,
-                               SellerDetailsService sellerDetailsService,
-                               OtpService otpService) {
+                               SellerDetailsService sellerDetailsService) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
         this.productService = productService;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.sellerDetailsService = sellerDetailsService;
-        this.otpService = otpService;
     }
 
     @PostMapping("/login")
@@ -73,20 +68,10 @@ public class ApiSellerController {
                     .body(ApiResponse.error("Invalid username or password"));
             }
 
-            // Check if email is verified (only if email exists - grandfather existing sellers)
-            Optional<Seller> sellerOpt = sellerRepository.findByUsername(request.getUsername());
-            if (sellerOpt.isPresent()) {
-                Seller seller = sellerOpt.get();
-                // Only check email verification if email exists (backward compatibility)
-                if (seller.getEmail() != null && !seller.getEmail().isEmpty() && !seller.isEmailVerified()) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("Please verify your email before logging in. Check your email for OTP or use /resend-otp endpoint."));
-                }
-            }
-
             // Generate token
             String token = tokenProvider.generateToken(userDetails);
 
+            Optional<Seller> sellerOpt = sellerRepository.findByUsername(request.getUsername());
             SellerDTO sellerDTO = sellerOpt.map(this::convertToDTO).orElse(null);
 
             Map<String, Object> response = new HashMap<>();
@@ -132,27 +117,15 @@ public class ApiSellerController {
             // Check if email already exists
             Optional<Seller> existingSellerByEmail = sellerRepository.findByEmail(request.getEmail());
             if (existingSellerByEmail.isPresent()) {
-                Seller existingSeller = existingSellerByEmail.get();
-                // If email is verified, reject registration
-                if (existingSeller.isEmailVerified()) {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error("Email already registered and verified"));
-                }
-                // If email exists but not verified, delete old record to allow re-registration
-                sellerRepository.delete(existingSeller);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email already registered"));
             }
 
-            // Check if username already exists (only if verified)
+            // Check if username already exists
             Optional<Seller> existingSellerByUsername = sellerRepository.findByUsername(request.getUsername());
             if (existingSellerByUsername.isPresent()) {
-                Seller existingSeller = existingSellerByUsername.get();
-                // If username exists and email is verified, reject
-                if (existingSeller.isEmailVerified()) {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error("Username already exists"));
-                }
-                // If username exists but email not verified, delete old record
-                sellerRepository.delete(existingSeller);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Username already exists"));
             }
 
             if (!isValidPassword(request.getPassword())) {
@@ -167,7 +140,6 @@ public class ApiSellerController {
             seller.setWhatsappNumber(request.getWhatsappNumber());
             seller.setBusinessEmail(request.getBusinessEmail());
             seller.setGstNumber(request.getGstNumber());
-            seller.setEmailVerified(false);
 
             // Photo handling - if provided as base64 (for JSON requests)
             if (request.getPhotoBase64() != null && !request.getPhotoBase64().trim().isEmpty()) {
@@ -183,107 +155,16 @@ public class ApiSellerController {
 
             Seller savedSeller = sellerRepository.saveAndFlush(seller);
             
-            // Generate and send OTP
-            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "SELLER");
-            
             Map<String, Object> response = new HashMap<>();
             response.put("sellerId", savedSeller.getId());
             response.put("email", savedSeller.getEmail());
+            response.put("message", "Registration successful");
             
-            if (otpResult != null && otpResult.isEmailSent()) {
-                response.put("message", "Registration successful. Please verify your email with the OTP sent to your email address.");
-                return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("OTP sent to your email. Please verify to complete registration.", response));
-            } else {
-                // Email failed - return OTP in response for testing (can be removed in production)
-                response.put("message", "Registration successful. OTP generated but email delivery failed. Please check logs or use resend-otp endpoint.");
-                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
-                response.put("emailDeliveryFailed", true);
-                logger.warn("Email delivery failed for seller signup. Returning OTP in response for testing: {}", 
-                           otpResult != null ? otpResult.getOtp() : "N/A");
-                return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Registration successful. Email delivery failed - OTP available in response.", response));
-            }
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Registration successful", response));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Registration failed: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyEmail(@RequestBody VerifyEmailRequest request) {
-        try {
-            if (request.getEmail() == null || request.getOtp() == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email and OTP are required"));
-            }
-            
-            // Verify OTP
-            if (!otpService.verifyOtp(request.getEmail(), request.getOtp(), "SELLER")) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Invalid or expired OTP"));
-            }
-            
-            // Find seller by email
-            Optional<Seller> sellerOpt = sellerRepository.findByEmail(request.getEmail());
-            if (sellerOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Seller not found"));
-            }
-            
-            // Mark email as verified
-            Seller seller = sellerOpt.get();
-            seller.setEmailVerified(true);
-            sellerRepository.save(seller);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Email verified successfully");
-            response.put("seller", convertToDTO(seller));
-            
-            return ResponseEntity.ok(ApiResponse.success("Email verified successfully", response));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Verification failed: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/resend-otp")
-    @Transactional(readOnly = false)
-    public ResponseEntity<ApiResponse<Map<String, Object>>> resendOtp(@RequestBody ResendOtpRequest request) {
-        try {
-            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email is required"));
-            }
-            
-            Optional<Seller> sellerOpt = sellerRepository.findByEmail(request.getEmail());
-            if (sellerOpt.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Seller not found"));
-            }
-            
-            Seller seller = sellerOpt.get();
-            if (seller.isEmailVerified()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email already verified"));
-            }
-            
-            // Generate and send new OTP (this method already has @Transactional)
-            OtpService.OtpResult otpResult = otpService.generateAndSendOtp(request.getEmail(), "SELLER");
-            
-            Map<String, Object> response = new HashMap<>();
-            if (otpResult != null && otpResult.isEmailSent()) {
-                response.put("message", "OTP resent to your email");
-            } else {
-                response.put("message", "OTP generated but email delivery failed. Please check logs or try again.");
-                response.put("otp", otpResult != null ? otpResult.getOtp() : "N/A");
-                response.put("emailDeliveryFailed", true);
-            }
-            
-            return ResponseEntity.ok(ApiResponse.success("OTP resent successfully", response));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Failed to resend OTP: " + e.getMessage()));
         }
     }
 
@@ -436,7 +317,6 @@ public class ApiSellerController {
         dto.setId(seller.getId());
         dto.setUsername(seller.getUsername());
         dto.setEmail(seller.getEmail());
-        dto.setEmailVerified(seller.isEmailVerified());
         dto.setWhatsappNumber(seller.getWhatsappNumber());
         dto.setBusinessEmail(seller.getBusinessEmail());
         dto.setGstNumber(seller.getGstNumber());
@@ -506,16 +386,5 @@ public class ApiSellerController {
     static class LoginRequest {
         private String username;
         private String password;
-    }
-
-    @lombok.Data
-    static class VerifyEmailRequest {
-        private String email;
-        private String otp;
-    }
-
-    @lombok.Data
-    static class ResendOtpRequest {
-        private String email;
     }
 }

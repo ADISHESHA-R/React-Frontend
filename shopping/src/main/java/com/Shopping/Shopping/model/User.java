@@ -29,9 +29,6 @@ public class User {
     private String address;
 
     private String email;
-    
-    @Column(nullable = true)
-    private Boolean emailVerified = false;
 
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BYTEA")
@@ -39,10 +36,5 @@ public class User {
 
     public String getPhotoBase64() {
         return this.photo != null ? Base64.getEncoder().encodeToString(this.photo) : null;
-    }
-    
-    // Helper method for backward compatibility
-    public boolean isEmailVerified() {
-        return emailVerified != null && emailVerified;
     }
 }

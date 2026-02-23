@@ -127,7 +127,6 @@ public class ApiUserController {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
-        dto.setEmailVerified(user.isEmailVerified());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setAlternateNumber(user.getAlternateNumber());
         dto.setAddress(user.getAddress());

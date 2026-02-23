@@ -52,12 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (requestPath.startsWith("/api/v1/products") ||
             requestPath.startsWith("/api/v1/auth/signup") ||
             requestPath.startsWith("/api/v1/auth/login") ||
-            requestPath.startsWith("/api/v1/auth/verify-email") ||
-            requestPath.startsWith("/api/v1/auth/resend-otp") ||
             requestPath.startsWith("/api/v1/seller/signup") ||
             requestPath.startsWith("/api/v1/seller/login") ||
-            requestPath.startsWith("/api/v1/seller/verify-email") ||
-            requestPath.startsWith("/api/v1/seller/resend-otp") ||
             requestPath.startsWith("/api/v1/admin/login") ||
             requestPath.startsWith("/product-image/") ||
             requestPath.startsWith("/h2-console/") ||
