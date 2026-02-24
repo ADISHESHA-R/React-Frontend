@@ -130,7 +130,7 @@ public class SecurityConfig {
                                  "/api/v1/seller/signup", 
                                  "/api/v1/seller/login",
                                  "/api/v1/admin/login").permitAll()
-                .requestMatchers("/api/v1/user/**", "/api/v1/cart/**", "/api/v1/payment/**").hasRole("USER")
+                .requestMatchers("/api/v1/user/**", "/api/v1/cart/**", "/api/v1/wishlist/**", "/api/v1/payment/**").hasRole("USER")
                 .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
