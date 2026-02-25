@@ -7,6 +7,8 @@ import com.Shopping.Shopping.model.Product;
 import com.Shopping.Shopping.model.User;
 import com.Shopping.Shopping.repository.UserRepository;
 import com.Shopping.Shopping.service.ProductService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/user")
 public class ApiUserController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApiUserController.class);
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
     private final UserRepository userRepository;
     private final ProductService productService;
@@ -53,7 +59,11 @@ public class ApiUserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @ModelAttribute UserUpdateRequest request) {
         try {
+            logger.info("Profile update request received for user: {}", 
+                userDetails != null ? userDetails.getUsername() : "unknown");
+            
             if (userDetails == null) {
+                logger.warn("Profile update attempted without authentication");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Not authenticated"));
             }
@@ -64,15 +74,86 @@ public class ApiUserController {
             user.setAlternateNumber(request.getAlternateNumber());
             user.setAddress(request.getAddress());
 
+            // Handle photo upload with validation
             if (request.getPhoto() != null && !request.getPhoto().isEmpty()) {
-                user.setPhoto(request.getPhoto().getBytes());
+                logger.info("Processing profile photo - Name: {}, Size: {} bytes, Content Type: {}", 
+                    request.getPhoto().getOriginalFilename(), 
+                    request.getPhoto().getSize(), 
+                    request.getPhoto().getContentType());
+                
+                // Validate photo file
+                validatePhotoFile(request.getPhoto());
+                
+                try {
+                    byte[] photoBytes = request.getPhoto().getBytes();
+                    user.setPhoto(photoBytes);
+                    logger.info("Profile photo processed successfully ({} bytes)", photoBytes.length);
+                } catch (IOException e) {
+                    logger.error("Failed to read photo file bytes: {}", e.getMessage(), e);
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Failed to process photo file: " + e.getMessage()));
+                }
+            } else {
+                logger.info("No photo provided in update request");
             }
 
             User updatedUser = userRepository.saveAndFlush(user);
+            logger.info("Profile updated successfully for user: {}", userDetails.getUsername());
             return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", convertToDTO(updatedUser)));
+        } catch (IllegalArgumentException e) {
+            // Validation errors (invalid format, size, etc.) return 400 Bad Request
+            logger.warn("Profile update validation failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(e.getMessage()));
+        } catch (RuntimeException e) {
+            logger.error("Profile update failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            logger.error("Unexpected error during profile update: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to update profile: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Validate profile photo file format and size
+     * @param file MultipartFile to validate
+     * @throws IllegalArgumentException if validation fails
+     */
+    private void validatePhotoFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Photo file is required");
+        }
+        
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || fileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Photo filename is required");
+        }
+        
+        // Check file extension (JPG/JPEG/PNG allowed for profile photos)
+        String fileNameLower = fileName.toLowerCase();
+        if (!fileNameLower.endsWith(".jpg") && 
+            !fileNameLower.endsWith(".jpeg") && 
+            !fileNameLower.endsWith(".png")) {
+            throw new IllegalArgumentException(
+                "Only JPG, JPEG, and PNG image formats are allowed. Provided: " + fileName);
+        }
+        
+        // Check file size (10MB limit)
+        if (file.getSize() > MAX_FILE_SIZE) {
+            double sizeInMB = file.getSize() / (1024.0 * 1024.0);
+            throw new IllegalArgumentException(
+                String.format("Photo size exceeds 10MB limit. Size: %.2f MB", sizeInMB));
+        }
+        
+        // Validate content type if available
+        String contentType = file.getContentType();
+        if (contentType != null && 
+            !contentType.equalsIgnoreCase("image/jpeg") && 
+            !contentType.equalsIgnoreCase("image/jpg") &&
+            !contentType.equalsIgnoreCase("image/png")) {
+            logger.warn("Content type mismatch. Expected image/jpeg or image/png, got: {}", contentType);
         }
     }
 
@@ -114,11 +195,28 @@ public class ApiUserController {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
+        dto.setBrandName(product.getBrandName());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
+        dto.setSellingPrice(product.getSellingPrice() != null ? product.getSellingPrice() : product.getPrice());
         dto.setCategory(product.getCategory());
         dto.setUniqueProductId(product.getUniqueProductId());
-        dto.setImageUrl("/product-image/" + product.getId());
+        
+        // Handle images
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            List<String> imageUrls = product.getImages().stream()
+                .sorted((a, b) -> Integer.compare(
+                    a.getDisplayOrder() != null ? a.getDisplayOrder() : 0,
+                    b.getDisplayOrder() != null ? b.getDisplayOrder() : 0))
+                .map(img -> "/product-image/" + product.getId() + "/" + img.getId())
+                .collect(java.util.stream.Collectors.toList());
+            dto.setImageUrls(imageUrls);
+            dto.setPrimaryImageUrl(imageUrls.get(0));
+            dto.setImageUrl(imageUrls.get(0));
+        } else {
+            dto.setImageUrl("/product-image/" + product.getId());
+        }
+        
         return dto;
     }
 

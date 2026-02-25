@@ -251,11 +251,27 @@ public class ApiAdminController {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
+        dto.setBrandName(product.getBrandName());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
+        dto.setSellingPrice(product.getSellingPrice() != null ? product.getSellingPrice() : product.getPrice());
         dto.setCategory(product.getCategory());
         dto.setUniqueProductId(product.getUniqueProductId());
-        dto.setImageUrl("/product-image/" + product.getId());
+        
+        // Handle images
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            List<String> imageUrls = product.getImages().stream()
+                .sorted((a, b) -> Integer.compare(
+                    a.getDisplayOrder() != null ? a.getDisplayOrder() : 0,
+                    b.getDisplayOrder() != null ? b.getDisplayOrder() : 0))
+                .map(img -> "/product-image/" + product.getId() + "/" + img.getId())
+                .collect(java.util.stream.Collectors.toList());
+            dto.setImageUrls(imageUrls);
+            dto.setPrimaryImageUrl(imageUrls.get(0));
+            dto.setImageUrl(imageUrls.get(0));
+        } else {
+            dto.setImageUrl("/product-image/" + product.getId());
+        }
         return dto;
     }
 

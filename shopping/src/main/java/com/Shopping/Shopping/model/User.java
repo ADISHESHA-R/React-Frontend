@@ -32,6 +32,7 @@ public class User {
 
     @JdbcTypeCode(SqlTypes.BINARY)
     @Column(columnDefinition = "BYTEA")
+    @Lob
     private byte[] photo;
 
     public String getPhotoBase64() {

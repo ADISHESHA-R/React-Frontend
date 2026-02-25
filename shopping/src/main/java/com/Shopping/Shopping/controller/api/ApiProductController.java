@@ -82,11 +82,34 @@ public class ApiProductController {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
+        dto.setBrandName(product.getBrandName());
         dto.setCategory(product.getCategory());
+        dto.setSubCategory(product.getSubCategory());
+        dto.setDescription(product.getDescription());
+        dto.setLongDescription(product.getLongDescription());
+        dto.setKeyFeatures(product.getKeyFeatures());
+        dto.setPrice(product.getPrice());
+        dto.setSellingPrice(product.getSellingPrice() != null ? product.getSellingPrice() : product.getPrice());
+        dto.setMrp(product.getMrp());
+        dto.setDiscountPercent(product.getDiscountPercent());
         dto.setUniqueProductId(product.getUniqueProductId());
-        dto.setImageUrl("/product-image/" + product.getId());
+        
+        // Handle images
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            List<String> imageUrls = product.getImages().stream()
+                .sorted((a, b) -> Integer.compare(
+                    a.getDisplayOrder() != null ? a.getDisplayOrder() : 0,
+                    b.getDisplayOrder() != null ? b.getDisplayOrder() : 0))
+                .map(img -> "/product-image/" + product.getId() + "/" + img.getId())
+                .collect(java.util.stream.Collectors.toList());
+            dto.setImageUrls(imageUrls);
+            dto.setPrimaryImageUrl(imageUrls.get(0));
+            dto.setImageUrl(imageUrls.get(0));
+        } else {
+            dto.setImageUrl("/product-image/" + product.getId());
+            dto.setPrimaryImageUrl("/product-image/" + product.getId());
+        }
+        
         return dto;
     }
 }

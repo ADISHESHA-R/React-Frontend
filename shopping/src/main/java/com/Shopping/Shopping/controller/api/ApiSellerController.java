@@ -5,6 +5,7 @@ import com.Shopping.Shopping.dto.ProductDTO;
 import com.Shopping.Shopping.dto.SellerDTO;
 import com.Shopping.Shopping.model.Product;
 import com.Shopping.Shopping.model.Seller;
+import com.Shopping.Shopping.repository.ProductImageRepository;
 import com.Shopping.Shopping.repository.ProductRepository;
 import com.Shopping.Shopping.repository.SellerRepository;
 import com.Shopping.Shopping.security.JwtTokenProvider;
@@ -18,9 +19,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,19 +48,22 @@ public class ApiSellerController {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final SellerDetailsService sellerDetailsService;
+    private final ProductImageRepository productImageRepository;
 
     public ApiSellerController(SellerRepository sellerRepository,
                                ProductRepository productRepository,
                                ProductService productService,
                                PasswordEncoder passwordEncoder,
                                JwtTokenProvider tokenProvider,
-                               SellerDetailsService sellerDetailsService) {
+                               SellerDetailsService sellerDetailsService,
+                               ProductImageRepository productImageRepository) {
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
         this.productService = productService;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.sellerDetailsService = sellerDetailsService;
+        this.productImageRepository = productImageRepository;
     }
 
     @PostMapping("/login")
@@ -225,6 +235,7 @@ public class ApiSellerController {
     }
 
     @PostMapping("/products")
+    @Transactional
     public ResponseEntity<ApiResponse<ProductDTO>> uploadProduct(
             @ModelAttribute ProductUploadRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -242,31 +253,140 @@ public class ApiSellerController {
                 uniqueProductId = "PROD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
             }
 
-            // Handle image filename safely (validation happens in saveProduct)
-            String imageFileName = null;
-            if (request.getProductImage() != null && !request.getProductImage().isEmpty()) {
-                imageFileName = request.getProductImage().getOriginalFilename();
+            // Create product with all fields
+            Product product = new Product();
+            product.setName(request.getProductName());
+            product.setBrandName(request.getBrandName());
+            product.setCategory(request.getProductCategory());
+            product.setSubCategory(request.getSubCategory());
+            product.setDescription(request.getProductDescription());
+            product.setLongDescription(request.getLongDescription());
+            product.setKeyFeatures(request.getKeyFeatures());
+            
+            // Pricing
+            product.setMrp(request.getMrp());
+            double sellingPrice = request.getSellingPrice() != null ? request.getSellingPrice() : 
+                (request.getProductPrice() != 0 ? request.getProductPrice() : 0.0);
+            product.setSellingPrice(sellingPrice);
+            product.setPrice(sellingPrice); // Legacy field
+            product.setDiscountPercent(request.getDiscountPercent());
+            product.setGstIncluded(request.getGstIncluded());
+            product.setMinimumOrderQuantity(request.getMinimumOrderQuantity());
+            
+            // Inventory
+            product.setAvailableQuantity(request.getAvailableQuantity());
+            product.setSkuId(request.getSkuId());
+            product.setStockAvailability(request.getStockAvailability());
+            
+            // Shipping
+            product.setPackageWeight(request.getPackageWeight());
+            product.setPackageLength(request.getPackageLength());
+            product.setPackageWidth(request.getPackageWidth());
+            product.setPackageHeight(request.getPackageHeight());
+            product.setPickupAddress(request.getPickupAddress());
+            product.setDeliveryMethod(request.getDeliveryMethod());
+            
+            // Tax & Compliance
+            product.setGstNumber(request.getGstNumber() != null ? request.getGstNumber() : seller.getGstNumber());
+            product.setHsnCode(request.getHsnCode());
+            product.setInvoiceRequired(request.getInvoiceRequired());
+            
+            // Legal
+            product.setBrandAuthorized(request.getBrandAuthorized());
+            product.setTrademarkVerified(request.getTrademarkVerified());
+            product.setComplianceCertificates(request.getComplianceCertificates());
+            
+            // Seller Preferences
+            product.setReturnPolicy(request.getReturnPolicy());
+            product.setReplacementAvailable(request.getReplacementAvailable());
+            product.setWarrantyDetails(request.getWarrantyDetails());
+            
+            // Legacy fields
+            product.setUniqueProductId(uniqueProductId);
+            product.setSeller(seller);
+            product.setSpecifications(request.getSpecifications());
+
+            // Save product first
+            Product savedProduct = productRepository.save(product);
+
+            // Handle multiple images
+            if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
+                // Parse image types
+                List<String> imageTypes = new ArrayList<>();
+                if (request.getImageTypes() != null && !request.getImageTypes().trim().isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        imageTypes = mapper.readValue(request.getImageTypes(), 
+                            new TypeReference<List<String>>() {});
+                    } catch (Exception e) {
+                        imageTypes = Arrays.asList(request.getImageTypes().split(","));
+                    }
+                }
+                
+                // Save multiple images
+                productService.saveProductImages(savedProduct, request.getProductImages(), imageTypes);
+            } else if (request.getProductImage() != null && !request.getProductImage().isEmpty()) {
+                // Legacy: single image
+                productService.saveProduct(savedProduct, request.getProductImage());
             }
 
-            Product product = new Product(
-                request.getProductName(),
-                request.getProductDescription(),
-                request.getProductPrice(),
-                imageFileName,
-                request.getProductCategory(),
-                uniqueProductId,
-                seller
-            );
+            // Save specifications
+            if (request.getSpecifications() != null && !request.getSpecifications().trim().isEmpty()) {
+                productService.saveProductSpecifications(savedProduct, request.getSpecifications());
+            }
+            
+            // Save variants
+            if (request.getVariants() != null && !request.getVariants().trim().isEmpty()) {
+                productService.saveProductVariants(savedProduct, request.getVariants());
+            }
+            
+            // Save documents (optional)
+            if (request.getDocuments() != null && !request.getDocuments().isEmpty()) {
+                List<String> docTypes = new ArrayList<>();
+                if (request.getDocumentTypes() != null && !request.getDocumentTypes().trim().isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        docTypes = mapper.readValue(request.getDocumentTypes(), 
+                            new TypeReference<List<String>>() {});
+                    } catch (Exception e) {
+                        docTypes = Arrays.asList(request.getDocumentTypes().split(","));
+                    }
+                }
+                productService.saveProductDocuments(savedProduct, request.getDocuments(), docTypes);
+            }
 
-            productService.saveProduct(product, request.getProductImage());
+            // Flush to ensure all changes are committed to database
+            productRepository.flush();
+            
+            // Reload product with images - explicitly fetch images
+            Product productWithImages = productService.getProductById(savedProduct.getId());
+            
+            // Explicitly load images from repository to ensure they're available for DTO conversion
+            List<com.Shopping.Shopping.model.ProductImage> images = 
+                productImageRepository.findByProductOrderByDisplayOrderAsc(productWithImages);
+            
+            if (!images.isEmpty()) {
+                // Set images directly to ensure they're available for DTO conversion
+                if (productWithImages.getImages() == null) {
+                    productWithImages.setImages(new ArrayList<>());
+                }
+                productWithImages.getImages().clear();
+                productWithImages.getImages().addAll(images);
+                logger.info("Loaded {} images for product ID: {}", images.size(), productWithImages.getId());
+            } else {
+                logger.warn("No images found for product ID: {}", productWithImages.getId());
+            }
+            
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Product uploaded successfully", convertProductToDTO(product)));
+                .body(ApiResponse.success("Product uploaded successfully", 
+                    convertProductToDTO(productWithImages)));
         } catch (IllegalArgumentException e) {
             // Validation errors (invalid format, size, etc.) return 400 Bad Request
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             // Other errors return 500 Internal Server Error
+            logger.error("Failed to upload product", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to upload product: " + e.getMessage()));
         }
@@ -334,11 +454,101 @@ public class ApiSellerController {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
+        dto.setBrandName(product.getBrandName());
         dto.setCategory(product.getCategory());
+        dto.setSubCategory(product.getSubCategory());
+        dto.setDescription(product.getDescription());
+        dto.setLongDescription(product.getLongDescription());
+        dto.setKeyFeatures(product.getKeyFeatures());
+        
+        // Pricing
+        dto.setMrp(product.getMrp());
+        dto.setSellingPrice(product.getSellingPrice() != null ? product.getSellingPrice() : product.getPrice());
+        dto.setPrice(product.getPrice());
+        dto.setDiscountPercent(product.getDiscountPercent());
+        dto.setGstIncluded(product.getGstIncluded());
+        dto.setMinimumOrderQuantity(product.getMinimumOrderQuantity());
+        
+        // Inventory
+        dto.setAvailableQuantity(product.getAvailableQuantity());
+        dto.setSkuId(product.getSkuId());
+        dto.setStockAvailability(product.getStockAvailability());
         dto.setUniqueProductId(product.getUniqueProductId());
-        dto.setImageUrl("/product-image/" + product.getId());
+        
+        // Shipping
+        dto.setPackageWeight(product.getPackageWeight());
+        dto.setPackageLength(product.getPackageLength());
+        dto.setPackageWidth(product.getPackageWidth());
+        dto.setPackageHeight(product.getPackageHeight());
+        dto.setPickupAddress(product.getPickupAddress());
+        dto.setDeliveryMethod(product.getDeliveryMethod());
+        
+        // Tax & Compliance
+        dto.setGstNumber(product.getGstNumber());
+        dto.setHsnCode(product.getHsnCode());
+        dto.setInvoiceRequired(product.getInvoiceRequired());
+        
+        // Legal
+        dto.setBrandAuthorized(product.getBrandAuthorized());
+        dto.setTrademarkVerified(product.getTrademarkVerified());
+        if (product.getComplianceCertificates() != null && !product.getComplianceCertificates().trim().isEmpty()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                dto.setComplianceCertificates(mapper.readValue(product.getComplianceCertificates(), 
+                    new TypeReference<List<String>>() {}));
+            } catch (Exception e) {
+                logger.warn("Failed to parse compliance certificates", e);
+            }
+        }
+        
+        // Seller Preferences
+        dto.setReturnPolicy(product.getReturnPolicy());
+        dto.setReplacementAvailable(product.getReplacementAvailable());
+        dto.setWarrantyDetails(product.getWarrantyDetails());
+        
+        // Handle multiple images
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            List<String> imageUrls = product.getImages().stream()
+                .sorted(Comparator.comparing(img -> img.getDisplayOrder() != null ? img.getDisplayOrder() : 0))
+                .map(img -> "/product-image/" + product.getId() + "/" + img.getId())
+                .collect(Collectors.toList());
+            
+            dto.setImageUrls(imageUrls);
+            dto.setPrimaryImageUrl(imageUrls.get(0));
+            dto.setImageUrl(imageUrls.get(0)); // Legacy field for backward compatibility
+        } else if (product.getImage() != null) {
+            // Legacy single image
+            dto.setImageUrl("/product-image/" + product.getId());
+            dto.setPrimaryImageUrl("/product-image/" + product.getId());
+            dto.setImageUrls(List.of("/product-image/" + product.getId()));
+        }
+        
+        // Handle specifications
+        if (product.getSpecificationsList() != null && !product.getSpecificationsList().isEmpty()) {
+            Map<String, String> specs = new HashMap<>();
+            product.getSpecificationsList().forEach(spec -> 
+                specs.put(spec.getSpecKey(), spec.getSpecValue()));
+            dto.setSpecifications(specs);
+        }
+        
+        // Handle variants
+        if (product.getVariants() != null && !product.getVariants().isEmpty()) {
+            List<Map<String, Object>> variantList = product.getVariants().stream()
+                .map(v -> {
+                    Map<String, Object> variant = new HashMap<>();
+                    variant.put("id", v.getId());
+                    variant.put("type", v.getVariantType());
+                    variant.put("value", v.getVariantValue());
+                    variant.put("priceModifier", v.getPriceModifier());
+                    variant.put("stock", v.getStockQuantity());
+                    variant.put("sku", v.getSku());
+                    variant.put("isAvailable", v.getIsAvailable());
+                    return variant;
+                })
+                .collect(Collectors.toList());
+            dto.setVariants(variantList);
+        }
+        
         return dto;
     }
 
@@ -374,12 +584,68 @@ public class ApiSellerController {
 
     @lombok.Data
     static class ProductUploadRequest {
+        // Basic Product Details
         private String productName;
-        private String productDescription;
-        private double productPrice;
+        private String brandName;
         private String productCategory;
+        private String subCategory;
+        private String productDescription; // Short description
+        private String longDescription;
+        private String keyFeatures; // Comma-separated or JSON
+        
+        // Pricing Details
+        private Double mrp;
+        private Double sellingPrice;
+        private double productPrice; // Legacy field (maps to sellingPrice)
+        private Double discountPercent;
+        private Boolean gstIncluded;
+        private Integer minimumOrderQuantity;
+        
+        // Inventory & Stock
+        private Integer availableQuantity;
+        private String skuId;
+        private String stockAvailability; // "ready", "made-to-order", "pre-order"
+        
+        // Product Specifications (JSON string)
+        private String specifications; // JSON: {"Model Number": "ABC123", "Warranty": "1 Year"}
+        
+        // Shipping Details
+        private Double packageWeight;
+        private Double packageLength;
+        private Double packageWidth;
+        private Double packageHeight;
+        private String pickupAddress;
+        private String deliveryMethod; // "fulfilled", "self-ship"
+        
+        // Tax & Compliance
+        private String gstNumber;
+        private String hsnCode;
+        private Boolean invoiceRequired;
+        
+        // Legal & Brand Info
+        private Boolean brandAuthorized;
+        private Boolean trademarkVerified;
+        private String complianceCertificates; // JSON array: ["BIS", "FSSAI"]
+        
+        // Seller Preferences
+        private String returnPolicy;
+        private Boolean replacementAvailable;
+        private String warrantyDetails;
+        
+        // Variants (JSON string)
+        private String variants; // JSON: [{"type": "size", "value": "XL", "priceModifier": 0, "stock": 10}]
+        
+        // Media
+        private List<MultipartFile> productImages; // Multiple images
+        private String imageTypes; // JSON: ["front", "back", "lifestyle"] or comma-separated
+        private MultipartFile productImage; // Legacy single image
+        
+        // Documents (optional)
+        private List<MultipartFile> documents; // Certificates, authorization letters
+        private String documentTypes; // JSON: ["brand_authorization", "bis_certificate"] or comma-separated
+        
+        // Other
         private String uniqueProductId;
-        private MultipartFile productImage;
     }
 
     @lombok.Data
