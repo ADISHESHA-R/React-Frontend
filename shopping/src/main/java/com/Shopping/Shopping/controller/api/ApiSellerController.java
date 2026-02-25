@@ -363,23 +363,17 @@ public class ApiSellerController {
             
             // Explicitly load images from repository to ensure they're available for DTO conversion
             List<com.Shopping.Shopping.model.ProductImage> images = 
-                productImageRepository.findByProductOrderByDisplayOrderAsc(productWithImages);
+                productImageRepository.findByProductOrderByDisplayOrderAsc(savedProduct);
             
             if (!images.isEmpty()) {
-                // Set images directly to ensure they're available for DTO conversion
-                if (productWithImages.getImages() == null) {
-                    productWithImages.setImages(new ArrayList<>());
-                }
-                productWithImages.getImages().clear();
-                productWithImages.getImages().addAll(images);
-                logger.info("Loaded {} images for product ID: {}", images.size(), productWithImages.getId());
+                logger.info("Loaded {} images for product ID: {}", images.size(), savedProduct.getId());
             } else {
-                logger.warn("No images found for product ID: {}", productWithImages.getId());
+                logger.warn("No images found for product ID: {}", savedProduct.getId());
             }
             
             return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Product uploaded successfully", 
-                    convertProductToDTO(productWithImages)));
+                    convertProductToDTO(productWithImages, images)));
         } catch (IllegalArgumentException e) {
             // Validation errors (invalid format, size, etc.) return 400 Bad Request
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -451,6 +445,10 @@ public class ApiSellerController {
     }
 
     private ProductDTO convertProductToDTO(Product product) {
+        return convertProductToDTO(product, null);
+    }
+    
+    private ProductDTO convertProductToDTO(Product product, List<com.Shopping.Shopping.model.ProductImage> imagesParam) {
         ProductDTO dto = new ProductDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
@@ -506,9 +504,17 @@ public class ApiSellerController {
         dto.setReplacementAvailable(product.getReplacementAvailable());
         dto.setWarrantyDetails(product.getWarrantyDetails());
         
-        // Handle multiple images
-        if (product.getImages() != null && !product.getImages().isEmpty()) {
-            List<String> imageUrls = product.getImages().stream()
+        // Handle multiple images - prefer passed images, fallback to product.getImages()
+        List<com.Shopping.Shopping.model.ProductImage> images = imagesParam;
+        if (images == null || images.isEmpty()) {
+            // Try to get from product entity
+            if (product.getImages() != null && !product.getImages().isEmpty()) {
+                images = new ArrayList<>(product.getImages());
+            }
+        }
+        
+        if (images != null && !images.isEmpty()) {
+            List<String> imageUrls = images.stream()
                 .sorted(Comparator.comparing(img -> img.getDisplayOrder() != null ? img.getDisplayOrder() : 0))
                 .map(img -> "/product-image/" + product.getId() + "/" + img.getId())
                 .collect(Collectors.toList());
@@ -516,11 +522,15 @@ public class ApiSellerController {
             dto.setImageUrls(imageUrls);
             dto.setPrimaryImageUrl(imageUrls.get(0));
             dto.setImageUrl(imageUrls.get(0)); // Legacy field for backward compatibility
-        } else if (product.getImage() != null) {
+            logger.debug("Set {} image URLs for product ID: {}", imageUrls.size(), product.getId());
+        } else if (product.getImage() != null && product.getImage().length > 0) {
             // Legacy single image
             dto.setImageUrl("/product-image/" + product.getId());
             dto.setPrimaryImageUrl("/product-image/" + product.getId());
             dto.setImageUrls(List.of("/product-image/" + product.getId()));
+            logger.debug("Using legacy single image for product ID: {}", product.getId());
+        } else {
+            logger.warn("No images found for product ID: {}", product.getId());
         }
         
         // Handle specifications
