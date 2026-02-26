@@ -422,4 +422,24 @@ public class ProductService {
             logger.warn("Content type mismatch. Expected image/jpeg, got: {}", contentType);
         }
     }
+
+    public void deleteProductImages(Product product) {
+        productImageRepository.deleteByProduct(product);
+        logger.info("Deleted all images for product ID: {}", product.getId());
+    }
+
+    public void deleteProductSpecifications(Product product) {
+        productSpecificationRepository.deleteByProduct(product);
+        logger.info("Deleted all specifications for product ID: {}", product.getId());
+    }
+
+    public void deleteProductVariants(Product product) {
+        productVariantRepository.deleteByProduct(product);
+        logger.info("Deleted all variants for product ID: {}", product.getId());
+    }
+
+    public void deleteProductDocuments(Product product) {
+        productDocumentRepository.deleteByProduct(product);
+        logger.info("Deleted all documents for product ID: {}", product.getId());
+    }
 }

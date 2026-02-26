@@ -430,6 +430,279 @@ public class ApiSellerController {
         }
     }
 
+    @PutMapping("/products/{id}")
+    @Transactional
+    public ResponseEntity<ApiResponse<ProductDTO>> updateProduct(
+            @PathVariable Long id,
+            @ModelAttribute ProductUploadRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Not authenticated"));
+            }
+
+            Seller seller = sellerRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Seller not found"));
+
+            // Load product and validate ownership
+            Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+
+            // Validate ownership - product must belong to the authenticated seller
+            if (product.getSeller() == null || !product.getSeller().getId().equals(seller.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("You don't have permission to update this product"));
+            }
+
+            // Update basic product details
+            if (request.getProductName() != null) {
+                product.setName(request.getProductName());
+            }
+            if (request.getBrandName() != null) {
+                product.setBrandName(request.getBrandName());
+            }
+            if (request.getProductCategory() != null) {
+                product.setCategory(request.getProductCategory());
+            }
+            if (request.getSubCategory() != null) {
+                product.setSubCategory(request.getSubCategory());
+            }
+            if (request.getProductDescription() != null) {
+                product.setDescription(request.getProductDescription());
+            }
+            if (request.getLongDescription() != null) {
+                product.setLongDescription(request.getLongDescription());
+            }
+            if (request.getKeyFeatures() != null) {
+                product.setKeyFeatures(request.getKeyFeatures());
+            }
+
+            // Update pricing
+            if (request.getMrp() != null) {
+                product.setMrp(request.getMrp());
+            }
+            if (request.getSellingPrice() != null) {
+                product.setSellingPrice(request.getSellingPrice());
+                product.setPrice(request.getSellingPrice());
+            } else if (request.getProductPrice() != 0) {
+                product.setSellingPrice(request.getProductPrice());
+                product.setPrice(request.getProductPrice());
+            }
+            if (request.getDiscountPercent() != null) {
+                product.setDiscountPercent(request.getDiscountPercent());
+            }
+            if (request.getGstIncluded() != null) {
+                product.setGstIncluded(request.getGstIncluded());
+            }
+            if (request.getMinimumOrderQuantity() != null) {
+                product.setMinimumOrderQuantity(request.getMinimumOrderQuantity());
+            }
+
+            // Update inventory
+            if (request.getAvailableQuantity() != null) {
+                product.setAvailableQuantity(request.getAvailableQuantity());
+            }
+            if (request.getSkuId() != null) {
+                product.setSkuId(request.getSkuId());
+            }
+            if (request.getStockAvailability() != null) {
+                product.setStockAvailability(request.getStockAvailability());
+            }
+
+            // Update shipping
+            if (request.getPackageWeight() != null) {
+                product.setPackageWeight(request.getPackageWeight());
+            }
+            if (request.getPackageLength() != null) {
+                product.setPackageLength(request.getPackageLength());
+            }
+            if (request.getPackageWidth() != null) {
+                product.setPackageWidth(request.getPackageWidth());
+            }
+            if (request.getPackageHeight() != null) {
+                product.setPackageHeight(request.getPackageHeight());
+            }
+            if (request.getPickupAddress() != null) {
+                product.setPickupAddress(request.getPickupAddress());
+            }
+            if (request.getDeliveryMethod() != null) {
+                product.setDeliveryMethod(request.getDeliveryMethod());
+            }
+
+            // Update tax & compliance
+            if (request.getGstNumber() != null) {
+                product.setGstNumber(request.getGstNumber());
+            }
+            if (request.getHsnCode() != null) {
+                product.setHsnCode(request.getHsnCode());
+            }
+            if (request.getInvoiceRequired() != null) {
+                product.setInvoiceRequired(request.getInvoiceRequired());
+            }
+
+            // Update legal & brand info
+            if (request.getBrandAuthorized() != null) {
+                product.setBrandAuthorized(request.getBrandAuthorized());
+            }
+            if (request.getTrademarkVerified() != null) {
+                product.setTrademarkVerified(request.getTrademarkVerified());
+            }
+            if (request.getComplianceCertificates() != null) {
+                product.setComplianceCertificates(request.getComplianceCertificates());
+            }
+
+            // Update seller preferences
+            if (request.getReturnPolicy() != null) {
+                product.setReturnPolicy(request.getReturnPolicy());
+            }
+            if (request.getReplacementAvailable() != null) {
+                product.setReplacementAvailable(request.getReplacementAvailable());
+            }
+            if (request.getWarrantyDetails() != null) {
+                product.setWarrantyDetails(request.getWarrantyDetails());
+            }
+
+            // Update unique product ID if provided
+            if (request.getUniqueProductId() != null && !request.getUniqueProductId().trim().isEmpty()) {
+                product.setUniqueProductId(request.getUniqueProductId());
+            }
+
+            // Update specifications if provided
+            if (request.getSpecifications() != null) {
+                product.setSpecifications(request.getSpecifications());
+            }
+
+            // Save product first
+            Product savedProduct = productRepository.save(product);
+
+            // Handle images - delete existing and add new ones if provided
+            if (request.getProductImages() != null && !request.getProductImages().isEmpty()) {
+                // Delete existing images
+                productService.deleteProductImages(savedProduct);
+                
+                // Parse image types
+                List<String> imageTypes = new ArrayList<>();
+                if (request.getImageTypes() != null && !request.getImageTypes().trim().isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        imageTypes = mapper.readValue(request.getImageTypes(), 
+                            new TypeReference<List<String>>() {});
+                    } catch (Exception e) {
+                        imageTypes = Arrays.asList(request.getImageTypes().split(","));
+                    }
+                }
+                
+                // Save new images
+                productService.saveProductImages(savedProduct, request.getProductImages(), imageTypes);
+            } else if (request.getProductImage() != null && !request.getProductImage().isEmpty()) {
+                // Legacy: single image - delete existing and save new
+                productService.deleteProductImages(savedProduct);
+                productService.saveProduct(savedProduct, request.getProductImage());
+            }
+
+            // Update specifications (separate table)
+            if (request.getSpecifications() != null && !request.getSpecifications().trim().isEmpty()) {
+                // Delete existing specifications
+                productService.deleteProductSpecifications(savedProduct);
+                // Save new specifications
+                productService.saveProductSpecifications(savedProduct, request.getSpecifications());
+            }
+
+            // Update variants
+            if (request.getVariants() != null && !request.getVariants().trim().isEmpty()) {
+                // Delete existing variants
+                productService.deleteProductVariants(savedProduct);
+                // Save new variants
+                productService.saveProductVariants(savedProduct, request.getVariants());
+            }
+
+            // Update documents
+            if (request.getDocuments() != null && !request.getDocuments().isEmpty()) {
+                // Delete existing documents
+                productService.deleteProductDocuments(savedProduct);
+                
+                List<String> docTypes = new ArrayList<>();
+                if (request.getDocumentTypes() != null && !request.getDocumentTypes().trim().isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        docTypes = mapper.readValue(request.getDocumentTypes(), 
+                            new TypeReference<List<String>>() {});
+                    } catch (Exception e) {
+                        docTypes = Arrays.asList(request.getDocumentTypes().split(","));
+                    }
+                }
+                // Save new documents
+                productService.saveProductDocuments(savedProduct, request.getDocuments(), docTypes);
+            }
+
+            // Flush to ensure all changes are committed
+            productRepository.flush();
+
+            // Reload product with images
+            Product productWithImages = productService.getProductById(savedProduct.getId());
+            List<com.Shopping.Shopping.model.ProductImage> images = 
+                productImageRepository.findByProductOrderByDisplayOrderAsc(savedProduct);
+
+            return ResponseEntity.ok(ApiResponse.success("Product updated successfully", 
+                convertProductToDTO(productWithImages, images)));
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to update product", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Failed to update product: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/products/{id}")
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> deleteProduct(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Not authenticated"));
+            }
+
+            Seller seller = sellerRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Seller not found"));
+
+            // Load product and validate ownership
+            Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+
+            // Validate ownership - product must belong to the authenticated seller
+            if (product.getSeller() == null || !product.getSeller().getId().equals(seller.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("You don't have permission to delete this product"));
+            }
+
+            // Delete the product - this will cascade delete related entities
+            // (ProductImage, ProductSpecification, ProductVariant, ProductDocument)
+            productRepository.delete(product);
+
+            return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to delete product", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Failed to delete product: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/home")
     public ResponseEntity<ApiResponse<SellerDTO>> getHome(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
