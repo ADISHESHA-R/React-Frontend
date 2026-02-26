@@ -215,8 +215,22 @@ public class ApiAdminController {
     @Transactional
     public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable Long id) {
         try {
-            productRepository.deleteById(id);
+            // Load the product first to make it managed, which enables cascade delete
+            Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+            
+            // Delete the product - this will cascade delete related entities
+            // (ProductImage, ProductSpecification, ProductVariant, ProductDocument)
+            productRepository.delete(product);
+            
             return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Failed to delete product: " + e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to delete product: " + e.getMessage()));
