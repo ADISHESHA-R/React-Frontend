@@ -155,11 +155,31 @@ public class ApiSellerController {
             if (request.getPhotoBase64() != null && !request.getPhotoBase64().trim().isEmpty()) {
                 // Handle base64 photo if provided
                 try {
-                    byte[] photoBytes = java.util.Base64.getDecoder().decode(request.getPhotoBase64());
+                    String base64String = request.getPhotoBase64().trim();
+                    
+                    // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                    if (base64String.contains(",")) {
+                        base64String = base64String.substring(base64String.indexOf(",") + 1);
+                    }
+                    
+                    // Decode base64 string to bytes
+                    byte[] photoBytes = java.util.Base64.getDecoder().decode(base64String);
+                    
+                    // Validate that decoded bytes are not empty
+                    if (photoBytes == null || photoBytes.length == 0) {
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(ApiResponse.error("Invalid photo format. Decoded image is empty."));
+                    }
+                    
                     seller.setPhoto(photoBytes);
                 } catch (IllegalArgumentException e) {
+                    logger.error("Base64 decode error: {}", e.getMessage());
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponse.error("Invalid photo format. Please provide a valid base64 encoded image."));
+                } catch (Exception e) {
+                    logger.error("Photo processing error: {}", e.getMessage());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Failed to process photo: " + e.getMessage()));
                 }
             }
 
